@@ -4,7 +4,7 @@ import path from 'node:path';
 // Reads the status line JSON saved by hooks/session-slayer-statusline.sh, one file per session.
 export type Limit = { pct: number; resetsAt: number }; // resetsAt in ms
 export type ClaudeStatus = {
-  perSession: Map<string, { costUsd?: number; contextPct?: number }>;
+  perSession: Map<string, { costUsd?: number; contextPct?: number; model?: string }>;
   fiveHour?: Limit;
   sevenDay?: Limit;
   todayUsd: number; // summed cost of sessions active since local midnight
@@ -12,6 +12,7 @@ export type ClaudeStatus = {
 
 type Raw = {
   cost?: { total_cost_usd?: number };
+  model?: { display_name?: string };
   context_window?: { used_percentage?: number | null };
   rate_limits?: Record<string, { used_percentage?: number; resets_at?: number } | undefined>;
 };
@@ -43,6 +44,7 @@ export function readClaudeStatus(dir: string, now = Date.now()): ClaudeStatus {
     status.perSession.set(f.slice(0, -'.json'.length), {
       costUsd: raw.cost?.total_cost_usd,
       contextPct: raw.context_window?.used_percentage ?? undefined,
+      model: raw.model?.display_name,
     });
     if (mtime >= midnight) status.todayUsd += raw.cost?.total_cost_usd ?? 0;
     // Plan limits are account-wide: take them from the most recently updated session.

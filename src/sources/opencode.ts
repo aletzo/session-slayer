@@ -11,6 +11,7 @@ type Service = { url: string; password: string };
 export type OcSession = {
   id: string;
   cost?: number;
+  model?: { id?: string };
   parentID?: string;
   title?: string;
   time: { created: number; updated: number; viewed?: number };
@@ -109,6 +110,7 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
         kind: 'interactive' as const,
         startedAt: session.time.created,
         costUsd: session.cost,
+        model: session.model?.id?.split('/').pop(),
         status: active[session.id] ? 'busy' : 'idle',
         state: waiting ? 'blocked' : undefined,
       };

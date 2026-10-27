@@ -14,13 +14,13 @@ it('readClaudeStatus: per-session cost and context, limits from the newest file,
   const dir = tmp();
   const now = Date.now();
   const future = now / 1000 + 3600;
-  fs.writeFileSync(path.join(dir, 'a.json'), JSON.stringify({ cost: { total_cost_usd: 1.5 }, context_window: { used_percentage: 40 }, rate_limits: { five_hour: { used_percentage: 10, resets_at: future } } }));
+  fs.writeFileSync(path.join(dir, 'a.json'), JSON.stringify({ cost: { total_cost_usd: 1.5 }, model: { display_name: 'Opus 5.5' }, context_window: { used_percentage: 40 }, rate_limits: { five_hour: { used_percentage: 10, resets_at: future } } }));
   fs.utimesSync(path.join(dir, 'a.json'), 1, 1);
   fs.writeFileSync(path.join(dir, 'b.json'), JSON.stringify({ cost: { total_cost_usd: 0.2 }, context_window: { used_percentage: null }, rate_limits: { five_hour: { used_percentage: 60, resets_at: future }, seven_day: { used_percentage: 5, resets_at: now / 1000 - 1 } } }));
   fs.writeFileSync(path.join(dir, 'broken.json'), '{');
   const s = readClaudeStatus(dir, now);
-  expect(s.perSession.get('a')).toEqual({ costUsd: 1.5, contextPct: 40 });
-  expect(s.perSession.get('b')).toEqual({ costUsd: 0.2, contextPct: undefined });
+  expect(s.perSession.get('a')).toEqual({ costUsd: 1.5, contextPct: 40, model: 'Opus 5.5' });
+  expect(s.perSession.get('b')).toEqual({ costUsd: 0.2, contextPct: undefined, model: undefined });
   expect(s.fiveHour).toEqual({ pct: 60, resetsAt: future * 1000 });
   expect(s.sevenDay).toBeUndefined();
   expect(s.todayUsd).toBeCloseTo(0.2); // a.json was last written in 1970

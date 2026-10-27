@@ -9,6 +9,7 @@ export type LiveSession = {
   kind: 'interactive' | 'background';
   startedAt?: number;
   costUsd?: number;
+  model?: string;
   status?: string;
   state?: string;
 };
@@ -43,6 +44,7 @@ export type Card = {
   inWezterm: boolean;
   costUsd?: number;
   contextPct?: number;
+  model?: string;
 };
 
 export type Board = {

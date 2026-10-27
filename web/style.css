@@ -159,10 +159,6 @@ h1 {
   word-break: break-word;
 }
 
-.lane-title.fireline {
-  color: var(--fire);
-}
-
 .cell {
   display: flex;
   flex-direction: column;
@@ -428,4 +424,26 @@ h1 {
 .muted,
 .usage {
   color: var(--muted);
+}
+
+.tag.branch {
+  border-color: #9333ea;
+  color: #9333ea;
+}
+
+.tag.model {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tag.branch {
+    border-color: #c084fc;
+    color: #c084fc;
+  }
+
+  .tag.model {
+    border-color: #4ade80;
+    color: #4ade80;
+  }
 }

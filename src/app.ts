@@ -150,7 +150,12 @@ export class App {
     const cards = rawCards.map((c) => {
       const st = this.claudeStatus.perSession.get(c.sessionId);
       const s = this.sessions.find((x) => x.sessionId === c.sessionId);
-      return { ...c, costUsd: c.tool === 'opencode' ? s?.costUsd : st?.costUsd, contextPct: st?.contextPct };
+      return {
+        ...c,
+        costUsd: c.tool === 'opencode' ? s?.costUsd : st?.costUsd,
+        contextPct: st?.contextPct,
+        model: c.tool === 'opencode' ? s?.model : st?.model,
+      };
     });
     const usage = {
       claude5h: this.claudeStatus.fiveHour,

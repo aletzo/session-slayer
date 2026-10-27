@@ -287,6 +287,7 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
             card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>
           )}
           {card.tool === 'opencode' ? <span className="tag oc">opencode</span> : <span className="tag cc">claude code</span>}
+          {card.model && <span className="tag model" title="model">{card.model}</span>}
           {card.kind === 'background' && <span className="tag bg">background</span>}
           {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
         </div>
