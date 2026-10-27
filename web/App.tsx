@@ -43,11 +43,7 @@ function age(since: number, now: number): string {
   return `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}`;
 }
 
-// One image per session count: 00 to 20, then 21_plus.
-function monstersImage(count: number): string {
-  const n = count > 20 ? '21_plus' : String(count).padStart(2, '0');
-  return `/doomguy_monsters/doomguy_monsters_${n}.jpg`;
-}
+const TOOL_LABEL = { claude: 'Claude Code', opencode: 'opencode', codex: 'Codex' } as const;
 
 export function App() {
   const [board, setBoard] = useState<Board | null>(null);
@@ -56,6 +52,17 @@ export function App() {
   const [message, setMessage] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [search, setSearch] = useState('');
+  const [toolFilter, setToolFilter] = useState<Card['tool'] | null>(() => load('toolFilter', null));
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>(() => load('theme', 'system'));
+
+  useEffect(() => {
+    save('toolFilter', toolFilter);
+  }, [toolFilter]);
+  useEffect(() => {
+    save('theme', theme);
+    if (theme === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -83,12 +90,13 @@ export function App() {
 
   if (!board) return <div className="loading">Loading sessions…</div>;
 
-  const allTags = sortLanes([...new Set(board.cards.map((c) => c.lane))]);
+  const allTags = sortLanes(board.cards);
   const q = search.trim().toLowerCase();
   const cards = board.cards
     .filter((c) => !filter || c.lane === filter)
+    .filter((c) => !toolFilter || c.tool === toolFilter)
     .filter((c) => !q || [c.name, c.branch, c.ticket].some((s) => s?.toLowerCase().includes(q)));
-  const laneNames = lanes ? sortLanes([...new Set(cards.map((c) => c.lane))]) : [''];
+  const laneNames = lanes ? sortLanes(cards) : [''];
 
   return (
     <div className="app">
@@ -108,6 +116,13 @@ export function App() {
             </button>
           ))}
         </div>
+        <div className="chips tools">
+          {([null, 'claude', 'opencode', 'codex'] as const).map((t) => (
+            <button key={t ?? 'all'} className={toolFilter === t ? 'chip on' : 'chip'} onClick={() => setToolFilter(t)}>
+              {t ? TOOL_LABEL[t] : 'all tools'}
+            </button>
+          ))}
+        </div>
         <input
           className="search"
           type="search"
@@ -115,6 +130,13 @@ export function App() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <div className="chips theme" title="Theme">
+          {(['light', 'dark', 'system'] as const).map((t) => (
+            <button key={t} className={theme === t ? 'chip on' : 'chip'} onClick={() => setTheme(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
         <button className="chip" onClick={() => setLanes(!lanes)}>
           Lanes: {lanes ? 'on' : 'off'}
         </button>
@@ -153,8 +175,6 @@ export function App() {
         ))}
       </div>
       {!cards.length && <p className="empty">{q || filter ? 'No sessions match.' : 'No sessions. Start one with “+ New session”.'}</p>}
-
-      <img className="monsters" src={monstersImage(board.cards.length)} alt={`${board.cards.length} sessions`} />
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
     </div>
@@ -208,7 +228,7 @@ type Act = (fn: () => Promise<Record<string, string>>) => Promise<void>;
 function Lane(props: { lane: string; showTitle: boolean; cards: Card[]; now: number; act: Act; weztermAvailable: boolean }) {
   return (
     <>
-      {props.showTitle && <div className={`lane-title ${props.lane === 'fireline' ? 'fireline' : ''}`}>{props.lane}</div>}
+      {props.showTitle && <div className="lane-title">{props.lane}</div>}
       {COLUMNS.map((c) => (
         <div key={c.key} className="cell">
           {props.cards
@@ -286,7 +306,7 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
           ) : (
             card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>
           )}
-          {card.tool === 'opencode' ? <span className="tag oc">opencode</span> : <span className="tag cc">claude code</span>}
+          <span className={`tag ${card.tool}`}>{TOOL_LABEL[card.tool]}</span>
           {card.model && <span className="tag model" title="model">{card.model}</span>}
           {card.kind === 'background' && <span className="tag bg">background</span>}
           {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
@@ -316,7 +336,7 @@ function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
   const [repos, setRepos] = useState<string[]>([]);
   const [repo, setRepo] = useState('');
   const [name, setName] = useState('');
-  const [tool, setTool] = useState<'claude' | 'opencode'>(() => load('newTool', 'claude'));
+  const [tool, setTool] = useState<Card['tool']>(() => load('newTool', 'claude'));
 
   useEffect(() => {
     fetch('/api/repos')
@@ -346,18 +366,16 @@ function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
           </select>
         </label>
         <div className="tool-switch">
-          {(['claude', 'opencode'] as const).map((t) => (
+          {(['claude', 'opencode', 'codex'] as const).map((t) => (
             <button key={t} className={tool === t ? 'chip on' : 'chip'} onClick={() => setTool(t)}>
-              {t === 'claude' ? 'Claude Code' : 'opencode'}
+              {TOOL_LABEL[t]}
             </button>
           ))}
         </div>
-        {tool === 'claude' && (
-          <label>
-            Name (optional)
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. FIRE-12345 missing docs" />
-          </label>
-        )}
+        <label>
+          Name (optional)
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. ABC-123 fix login" />
+        </label>
         <div className="actions">
           <button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!repo} onClick={start}>

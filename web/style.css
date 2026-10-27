@@ -15,7 +15,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #161617;
     --panel: #232325;
     --fg: #ececee;
@@ -23,6 +23,15 @@
     --line: #3a3a3e;
     --accent: #8aa64a;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #161617;
+  --panel: #232325;
+  --fg: #ececee;
+  --muted: #a0a0a8;
+  --line: #3a3a3e;
+  --accent: #8aa64a;
 }
 
 * {
@@ -241,8 +250,42 @@ h1 {
 }
 
 .tag.ticket {
-  border-color: var(--fire);
-  color: var(--fire);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+/* tool chips: Claude Code, opencode, Codex */
+.tag.claude,
+.tag.opencode,
+.tag.codex {
+  border-color: #d97706;
+  color: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tag.ticket {
+    border-color: #60a5fa;
+    color: #60a5fa;
+  }
+
+  :root:not([data-theme="light"]) .tag.claude,
+  :root:not([data-theme="light"]) .tag.opencode,
+  :root:not([data-theme="light"]) .tag.codex {
+    border-color: #f59e0b;
+    color: #f59e0b;
+  }
+}
+
+:root[data-theme="dark"] .tag.ticket {
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+:root[data-theme="dark"] .tag.claude,
+:root[data-theme="dark"] .tag.opencode,
+:root[data-theme="dark"] .tag.codex {
+  border-color: #f59e0b;
+  color: #f59e0b;
 }
 
 .tag.warn {
@@ -352,36 +395,8 @@ h1 {
   width: 200px;
 }
 
-.monsters {
-  display: block;
-  /* auto top margin pushes it to the bottom of the page when the board is short */
-  margin: auto auto 0;
-  padding-top: 32px;
-  width: min(420px, 100%);
-  height: auto;
-}
 
-.tag.cc {
-  border-color: #d97706;
-  color: #d97706;
-}
 
-.tag.oc {
-  border-color: #2563eb;
-  color: #2563eb;
-}
-
-@media (prefers-color-scheme: dark) {
-  .tag.cc {
-    border-color: #f59e0b;
-    color: #f59e0b;
-  }
-
-  .tag.oc {
-    border-color: #60a5fa;
-    color: #60a5fa;
-  }
-}
 
 .tool-switch {
   display: flex;
@@ -437,13 +452,29 @@ h1 {
 }
 
 @media (prefers-color-scheme: dark) {
-  .tag.branch {
+  :root:not([data-theme="light"]) .tag.branch {
     border-color: #c084fc;
     color: #c084fc;
   }
-
-  .tag.model {
+  
+  :root:not([data-theme="light"]) .tag.model {
     border-color: #4ade80;
     color: #4ade80;
   }
+}
+
+:root[data-theme="dark"] .tag.branch {
+  border-color: #c084fc;
+  color: #c084fc;
+}
+
+:root[data-theme="dark"] .tag.model {
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+
+.chips.tools,
+.chips.theme {
+  flex: none;
 }
