@@ -1,0 +1,321 @@
+:root {
+  --bg: #f5f5f6;
+  --panel: #ffffff;
+  --fg: #252527;
+  --muted: #5a5a60;
+  --line: #e6e6e7;
+  --working: #16a34a;
+  --needs: #f97316;
+  --done: #84848c;
+  --fire: #e0301e;
+  --accent: #4a5f26;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--fg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161617;
+    --panel: #232325;
+    --fg: #ececee;
+    --muted: #a0a0a8;
+    --line: #3a3a3e;
+    --accent: #8aa64a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.app {
+  padding: 16px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 8px 0 0;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.chip {
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.chip.on {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.banner {
+  background: var(--fire);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.toast {
+  background: var(--panel);
+  border: 1px solid var(--needs);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.dismiss {
+  float: right;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.grid.with-lanes {
+  grid-template-columns: 160px repeat(3, minmax(0, 1fr));
+}
+
+.col-title {
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 3px solid;
+}
+
+.col-title.working {
+  border-color: var(--working);
+}
+
+.col-title.needs_input {
+  border-color: var(--needs);
+}
+
+.col-title.done {
+  border-color: var(--done);
+}
+
+.count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.lane-title {
+  font-weight: 600;
+  padding: 10px 8px;
+  border-top: 1px solid var(--line);
+  word-break: break-word;
+}
+
+.lane-title.fireline {
+  color: var(--fire);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  min-height: 48px;
+}
+
+.grid:not(.with-lanes) .cell {
+  border-top: none;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--done);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.card.working {
+  border-left-color: var(--working);
+}
+
+.card.needs_input {
+  border-left-color: var(--needs);
+}
+
+.card.clickable {
+  cursor: pointer;
+}
+
+.card.clickable:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.name {
+  font-weight: 600;
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name:hover {
+  text-decoration: underline dotted;
+}
+
+.card input {
+  font: inherit;
+  width: 100%;
+}
+
+.age {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.tag {
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--muted);
+}
+
+.tag.ticket {
+  border-color: var(--fire);
+  color: var(--fire);
+}
+
+.tag.warn {
+  border-color: var(--needs);
+  color: var(--needs);
+}
+
+.prompt {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.empty,
+.loading {
+  color: var(--muted);
+  padding: 24px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  background: var(--panel);
+  padding: 20px;
+  border-radius: 10px;
+  width: min(400px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dialog select,
+.dialog input {
+  font: inherit;
+  padding: 6px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.move {
+  margin-right: 6px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
