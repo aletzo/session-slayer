@@ -43,19 +43,20 @@ describe('buildCards', () => {
     const c = buildCards({ ...base, sessions: [live({ status: 'busy' })], since, now: 300 });
     expect([a[0].columnSince, b[0].columnSince, c[0].columnSince]).toEqual([100, 100, 300]);
   });
-  it('stored name wins over claude name; fireline lane from name', () => {
-    const [card] = buildCards({ ...base, sessions: [live({ name: 'auto', cwd: '/h/dev/repo' })], names: { s1: 'FIRE-9 x' }, since: new Map(), now: 0 });
-    expect(card).toMatchObject({ name: 'FIRE-9 x', lane: 'fireline', repo: 'repo', ticket: 'FIRE-9', branch: 'main' });
+  it('stored name wins over claude name; ticket lane from name', () => {
+    const [card] = buildCards({ ...base, sessions: [live({ name: 'auto', cwd: '/h/dev/repo' })], names: { s1: 'OPS-9 x' }, since: new Map(), now: 0 });
+    expect(card).toMatchObject({ name: 'OPS-9 x', lane: 'OPS', laneKind: 'ticket', repo: 'repo', ticket: 'OPS-9', branch: 'main' });
   });
 });
 
-it('lane order: fireline, repos by name, other', () => {
-  expect(sortLanes(['other', 'b', 'fireline', 'a'])).toEqual(['fireline', 'a', 'b', 'other']);
+it('lane order: ticket projects, then repos, then other; by name inside each', () => {
+  const l = (lane: string, laneKind: 'ticket' | 'repo' | 'other') => ({ lane, laneKind });
+  expect(sortLanes([l('other', 'other'), l('b', 'repo'), l('OPS', 'ticket'), l('a', 'repo'), l('ABC', 'ticket'), l('a', 'repo')])).toEqual(['ABC', 'OPS', 'a', 'b', 'other']);
 });
 
 it('name order: user name, tab title, first prompt, "New session"; never Claude name', () => {
   const base = { lastEvent: () => undefined, names: {}, weztermSessions: new Set<string>(), branches: new Map(), since: new Map(), now: 0, home: '/h' };
-  const s = [live({ name: 'gis-discover-monorepo-d7' })];
+  const s = [live({ name: 'my-repo-d7' })];
   const n = (o: object) => buildCards({ ...base, titles: new Map(), firstPrompt: () => undefined, sessions: s, ...o })[0];
   expect(n({ names: { s1: 'mine' }, titles: new Map([['s1', 'Title']]) })).toMatchObject({ name: 'mine', nameSource: 'user' });
   expect(n({ titles: new Map([['s1', 'Title']]), firstPrompt: () => 'p' })).toMatchObject({ name: 'Title', nameSource: 'title' });
