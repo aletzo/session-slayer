@@ -7,22 +7,26 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/alexandros.tzotzolas/.claude/hooks/rtk-rewrite.sh"
+            "command": "/Users/me/.claude/hooks/other-tool-rewrite.sh"
           }
         ]
       }
     ],
     "SessionStart": [
       {
-        "matcher": "^(startup|resume|clear|compact|fork)$",
+        "matcher": "^(startup|resume)$",
         "hooks": [
           {
             "type": "command",
-            "command": "bash '/Users/alexandros.tzotzolas/.claude/hooks/herdr-agent-state.sh' session",
+            "command": "bash '/Users/me/.claude/hooks/other-tool-state.sh' session",
             "timeout": 10
           }
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /Users/me/.claude/statusline-command.sh"
   }
 }
