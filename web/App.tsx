@@ -43,6 +43,12 @@ function age(since: number, now: number): string {
   return `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}`;
 }
 
+// One image per session count: 00 to 20, then 21_plus.
+function monstersImage(count: number): string {
+  const n = count > 20 ? '21_plus' : String(count).padStart(2, '0');
+  return `/doomguy_monsters/doomguy_monsters_${n}.jpg`;
+}
+
 export function App() {
   const [board, setBoard] = useState<Board | null>(null);
   const [filter, setFilter] = useState<string | null>(() => load('filter', null));
@@ -145,6 +151,8 @@ export function App() {
         ))}
       </div>
       {!cards.length && <p className="empty">{q || filter ? 'No sessions match.' : 'No sessions. Start one with “+ New session”.'}</p>}
+
+      <img className="monsters" src={monstersImage(board.cards.length)} alt={`${board.cards.length} sessions`} />
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
     </div>

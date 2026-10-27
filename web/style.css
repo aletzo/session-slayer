@@ -351,3 +351,10 @@ h1 {
   color: var(--fg);
   width: 200px;
 }
+
+.monsters {
+  display: block;
+  margin: 32px auto 0;
+  width: min(420px, 100%);
+  height: auto;
+}
