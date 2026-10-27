@@ -10,6 +10,7 @@ const SERVICE_FILE = path.join(process.env.XDG_STATE_HOME ?? path.join(os.homedi
 type Service = { url: string; password: string };
 export type OcSession = {
   id: string;
+  cost?: number;
   parentID?: string;
   title?: string;
   time: { created: number; updated: number; viewed?: number };
@@ -74,18 +75,25 @@ export function pickSessions(windows: OcWindow[], sessions: OcSession[]): { wind
   return out;
 }
 
-export async function listOpencodeSessions(run: Runner, serviceFile?: string): Promise<LiveSession[]> {
-  const svc = readService(serviceFile);
-  if (!svc) return [];
-  const windows = await listWindows(run);
-  if (!windows.length) return [];
+export type OpencodeResult = { sessions: LiveSession[]; todayUsd?: number };
 
-  const [sessions, active] = await Promise.all([
+// Pure: summed cost of top-level sessions used since local midnight.
+export function todayCost(sessions: OcSession[], now = new Date()): number {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return sessions.filter((s) => !s.parentID && s.time.updated >= midnight).reduce((sum, s) => sum + (s.cost ?? 0), 0);
+}
+
+export async function listOpencodeSessions(run: Runner, serviceFile?: string): Promise<OpencodeResult> {
+  const svc = readService(serviceFile);
+  if (!svc) return { sessions: [] };
+
+  const [windows, sessions, active] = await Promise.all([
+    listWindows(run),
     api<OcSession[]>(svc, '/api/session?limit=200&order=desc'),
     api<Record<string, { type: string }>>(svc, '/api/session/active'),
   ]);
 
-  return Promise.all(
+  const live = await Promise.all(
     pickSessions(windows, sessions).map(async ({ window, session }) => {
       const [perms, forms] = await Promise.all([
         api<unknown[]>(svc, `/api/session/${session.id}/permission`).catch(() => []),
@@ -100,9 +108,11 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
         name: session.title,
         kind: 'interactive' as const,
         startedAt: session.time.created,
+        costUsd: session.cost,
         status: active[session.id] ? 'busy' : 'idle',
         state: waiting ? 'blocked' : undefined,
       };
     }),
   );
+  return { sessions: live, todayUsd: todayCost(sessions) };
 }

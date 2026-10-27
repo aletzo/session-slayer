@@ -21,6 +21,7 @@ async function serve(): Promise<void> {
     names: new Names(path.join(dataDir, 'names.json')),
     wezterm: new WezTerm(run),
     listOpencode: () => listOpencodeSessions(run),
+    statusDir: path.join(dataDir, 'status'),
   });
   await app.poll();
   const server = createServer(app, path.join(root, 'dist', 'web'));
@@ -45,7 +46,11 @@ if (cmd === 'serve') {
   await serve();
 } else if (cmd === 'install-hooks') {
   const settings = path.join(os.homedir(), '.claude', 'settings.json');
-  installHooks(settings, path.join(root, 'hooks', 'session-slayer-hook.sh'));
+  installHooks(
+    settings,
+    path.join(root, 'hooks', 'session-slayer-hook.sh'),
+    path.join(root, 'hooks', 'session-slayer-statusline.sh'),
+  );
   console.log(`Hooks added to ${settings} (backup: ${settings}.session-slayer.bak)`);
 } else {
   console.log('Usage: pnpm slayer <serve|install-hooks>');

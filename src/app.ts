@@ -5,6 +5,8 @@ import { buildCards, type GitInfo, parseGitInfo } from './board';
 import type { Names } from './names';
 import type { Runner } from './run';
 import { listClaudeSessions } from './sources/claudeAgents';
+import { type ClaudeStatus, readClaudeStatus } from './sources/claudeStatus';
+import type { OpencodeResult } from './sources/opencode';
 import { type EventStore, firstPromptFromTranscript } from './sources/hookEvents';
 import type { Board, Column, LiveSession } from './types';
 import { claudeCommand, claudeTitle, opencodeCommand, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
@@ -25,7 +27,8 @@ export type AppDeps = {
   wezterm: WezTerm;
   home?: string;
   listSessions?: () => Promise<LiveSession[]>;
-  listOpencode?: () => Promise<LiveSession[]>;
+  listOpencode?: () => Promise<OpencodeResult>;
+  statusDir?: string;
 };
 
 export class App {
@@ -36,6 +39,8 @@ export class App {
   private transcriptPrompts = new Map<string, string | undefined>();
   private sessionsError?: string;
   private opencodeError?: string;
+  private opencodeTodayUsd?: number;
+  private claudeStatus: ClaudeStatus = { perSession: new Map(), todayUsd: 0 };
   private weztermAvailable = false;
   private compacted = false;
   readonly home: string;
@@ -54,12 +59,17 @@ export class App {
       this.sessionsError = `can't read sessions: ${(e as Error).message}`;
     }
     try {
-      if (this.deps.listOpencode) opencode = await this.deps.listOpencode();
+      if (this.deps.listOpencode) {
+        const r = await this.deps.listOpencode();
+        opencode = r.sessions;
+        this.opencodeTodayUsd = r.todayUsd;
+      }
       this.opencodeError = undefined;
     } catch (e) {
       this.opencodeError = `can't read opencode sessions: ${(e as Error).message}`;
     }
     this.sessions = [...claude, ...opencode];
+    if (this.deps.statusDir) this.claudeStatus = readClaudeStatus(this.deps.statusDir);
     if (!this.compacted && !this.sessionsError) {
       this.deps.events.compact(new Set(this.sessions.map((s) => s.sessionId)));
       this.compacted = true;
@@ -114,7 +124,7 @@ export class App {
 
   board(now = Date.now()): Board {
     const ended = this.deps.events.ended;
-    const cards = buildCards({
+    const rawCards = buildCards({
       // A SessionEnd hides a session only if the live process started before it (resume keeps the sessionId).
       sessions: this.sessions.filter((s) => {
         const endTs = ended.get(s.sessionId);
@@ -137,8 +147,19 @@ export class App {
       now,
       home: this.home,
     });
+    const cards = rawCards.map((c) => {
+      const st = this.claudeStatus.perSession.get(c.sessionId);
+      const s = this.sessions.find((x) => x.sessionId === c.sessionId);
+      return { ...c, costUsd: c.tool === 'opencode' ? s?.costUsd : st?.costUsd, contextPct: st?.contextPct };
+    });
+    const usage = {
+      claude5h: this.claudeStatus.fiveHour,
+      claude7d: this.claudeStatus.sevenDay,
+      claudeTodayUsd: this.deps.statusDir ? this.claudeStatus.todayUsd : undefined,
+      opencodeTodayUsd: this.opencodeTodayUsd,
+    };
     const errors = [this.sessionsError, this.opencodeError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];
-    return { cards, errors: errors.filter((e): e is string => !!e), weztermAvailable: this.weztermAvailable };
+    return { cards, usage, errors: errors.filter((e): e is string => !!e), weztermAvailable: this.weztermAvailable };
   }
 
   private card(id: string) {

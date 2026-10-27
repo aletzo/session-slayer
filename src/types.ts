@@ -8,6 +8,7 @@ export type LiveSession = {
   name?: string;
   kind: 'interactive' | 'background';
   startedAt?: number;
+  costUsd?: number;
   status?: string;
   state?: string;
 };
@@ -40,10 +41,18 @@ export type Card = {
   tool: LiveSession['tool'];
   cwd: string;
   inWezterm: boolean;
+  costUsd?: number;
+  contextPct?: number;
 };
 
 export type Board = {
   cards: Card[];
   errors: string[];
   weztermAvailable: boolean;
+  usage: {
+    claude5h?: { pct: number; resetsAt: number };
+    claude7d?: { pct: number; resetsAt: number };
+    claudeTodayUsd?: number;
+    opencodeTodayUsd?: number;
+  };
 };

@@ -83,10 +83,10 @@ export function App() {
 
   if (!board) return <div className="loading">Loading sessions…</div>;
 
-  const allTags = sortLanes([...new Set(board.cards.flatMap((c) => c.tags))]);
+  const allTags = sortLanes([...new Set(board.cards.map((c) => c.lane))]);
   const q = search.trim().toLowerCase();
   const cards = board.cards
-    .filter((c) => !filter || c.tags.includes(filter))
+    .filter((c) => !filter || c.lane === filter)
     .filter((c) => !q || [c.name, c.branch, c.ticket].some((s) => s?.toLowerCase().includes(q)));
   const laneNames = lanes ? sortLanes([...new Set(cards.map((c) => c.lane))]) : [''];
 
@@ -119,6 +119,8 @@ export function App() {
           Lanes: {lanes ? 'on' : 'off'}
         </button>
       </header>
+
+      <UsageBar usage={board.usage} />
 
       {board.errors.map((e) => (
         <div key={e} className="banner">
@@ -155,6 +157,48 @@ export function App() {
       <img className="monsters" src={monstersImage(board.cards.length)} alt={`${board.cards.length} sessions`} />
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
+    </div>
+  );
+}
+
+const money = (usd: number) => `$${usd < 10 ? usd.toFixed(2) : usd.toFixed(0)}`;
+
+function usageText(card: Card): string {
+  return [card.costUsd !== undefined && money(card.costUsd), card.contextPct !== undefined && `${Math.round(card.contextPct)}% ctx`]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function Meter({ label, limit }: { label: string; limit: { pct: number; resetsAt: number } }) {
+  const pct = Math.min(100, Math.max(0, limit.pct));
+  const reset = new Date(limit.resetsAt).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  return (
+    <span className="meter" title={`resets ${reset}`}>
+      {label}
+      <span className="bar">
+        <span className={pct >= 80 ? 'fill high' : 'fill'} style={{ width: `${pct}%` }} />
+      </span>
+      {Math.round(pct)}% <span className="muted">· resets {reset}</span>
+    </span>
+  );
+}
+
+function UsageBar({ usage }: { usage: Board['usage'] }) {
+  if (!usage.claude5h && !usage.claude7d && usage.claudeTodayUsd === undefined && usage.opencodeTodayUsd === undefined) return null;
+  return (
+    <div className="usage-bar">
+      {usage.claude5h && <Meter label="Claude 5h" limit={usage.claude5h} />}
+      {usage.claude7d && <Meter label="Claude week" limit={usage.claude7d} />}
+      {usage.claudeTodayUsd !== undefined && (
+        <span className="meter" title="Estimated at list price">
+          Claude today <strong>{money(usage.claudeTodayUsd)}</strong>
+        </span>
+      )}
+      {usage.opencodeTodayUsd !== undefined && (
+        <span className="meter">
+          opencode today <strong>{money(usage.opencodeTodayUsd)}</strong>
+        </span>
+      )}
     </div>
   );
 }
@@ -246,7 +290,10 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
           {card.kind === 'background' && <span className="tag bg">background</span>}
           {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
         </div>
-        <span className="age">{age(card.columnSince, now)}</span>
+        <span className="age">
+          {usageText(card) && <span className="usage">{usageText(card)} · </span>}
+          {age(card.columnSince, now)}
+        </span>
       </div>
       {card.column === 'idle' && canFocus && !card.inWezterm && card.kind === 'interactive' && (
         <button

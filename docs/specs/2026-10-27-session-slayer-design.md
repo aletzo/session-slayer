@@ -171,7 +171,7 @@ GIS-discover-|                | [wiki docs]    | [GIS-6786]
 -------------+----------------+----------------+----------------
 ```
 
-- **Filter chips:** click a chip to show only cards with that tag. Click "all" to clear the filter.
+- **Filter chips:** one chip per lane (`fireline`, each repo, `other`). Click a chip to show only that lane; a fireline card shows only under `fireline`, never under its repo. Click "all" to clear the filter.
 - **Lanes on/off:** off shows one flat board with the three columns.
 - **Banners** at the top for errors (section 7).
 - The chosen filter and lane switch are kept in `localStorage`.

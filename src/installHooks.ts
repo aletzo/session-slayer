@@ -4,7 +4,18 @@ export const HOOK_EVENTS = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'No
 const TOOL_EVENTS = new Set(['PreToolUse', 'PostToolUse']);
 
 type HookEntry = { matcher?: string; hooks: { type: string; command: string; timeout?: number }[] };
-type Settings = { hooks?: Record<string, HookEntry[]> } & Record<string, unknown>;
+type StatusLine = { type: string; command: string } & Record<string, unknown>;
+type Settings = { hooks?: Record<string, HookEntry[]>; statusLine?: StatusLine } & Record<string, unknown>;
+
+const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
+
+// Puts the Session Slayer wrapper in front of the existing status line command (once).
+export function wrapStatusLine(settings: Settings, wrapperPath: string): Settings {
+  const current = settings.statusLine;
+  if (current?.command.includes('session-slayer-statusline.sh')) return settings;
+  const command = `sh ${shq(wrapperPath)}${current?.command ? ` ${shq(current.command)}` : ''}`;
+  return { ...settings, statusLine: { ...(current ?? {}), type: 'command', command } };
+}
 
 export function addHooks(settings: Settings, scriptPath: string): Settings {
   const hooks = { ...(settings.hooks ?? {}) };
@@ -22,9 +33,10 @@ export function addHooks(settings: Settings, scriptPath: string): Settings {
   return { ...settings, hooks };
 }
 
-export function installHooks(settingsFile: string, scriptPath: string): void {
+export function installHooks(settingsFile: string, scriptPath: string, statusLineWrapper?: string): void {
   const text = fs.existsSync(settingsFile) ? fs.readFileSync(settingsFile, 'utf8') : '{}';
   if (fs.existsSync(settingsFile)) fs.writeFileSync(`${settingsFile}.session-slayer.bak`, text);
-  const next = addHooks(JSON.parse(text), scriptPath);
+  let next = addHooks(JSON.parse(text), scriptPath);
+  if (statusLineWrapper) next = wrapStatusLine(next, statusLineWrapper);
   fs.writeFileSync(settingsFile, JSON.stringify(next, null, 2) + '\n');
 }

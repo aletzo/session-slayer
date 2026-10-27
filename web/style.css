@@ -5,7 +5,8 @@
   --muted: #5a5a60;
   --line: #e6e6e7;
   --working: #16a34a;
-  --needs: #f97316;
+  --needs: #dc2626;
+  --warn: #f97316;
   --idle: #84848c;
   --fire: #e0301e;
   --accent: #4a5f26;
@@ -106,7 +107,7 @@ h1 {
 
 .toast {
   background: var(--panel);
-  border: 1px solid var(--needs);
+  border: 1px solid var(--warn);
   padding: 8px 12px;
   border-radius: 6px;
   margin-bottom: 8px;
@@ -249,8 +250,8 @@ h1 {
 }
 
 .tag.warn {
-  border-color: var(--needs);
-  color: var(--needs);
+  border-color: var(--warn);
+  color: var(--warn);
 }
 
 .prompt {
@@ -389,4 +390,42 @@ h1 {
 .tool-switch {
   display: flex;
   gap: 6px;
+}
+
+.usage-bar {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar {
+  display: inline-block;
+  width: 80px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--working);
+}
+
+.fill.high {
+  background: var(--needs);
+}
+
+.muted,
+.usage {
+  color: var(--muted);
 }
