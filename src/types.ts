@@ -26,6 +26,7 @@ export type SessionEvent = {
 export type Card = {
   sessionId: string;
   name: string;
+  nameSource: 'user' | 'title' | 'prompt' | 'none';
   column: Column;
   lane: string;
   repo?: string;

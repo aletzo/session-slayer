@@ -133,7 +133,7 @@ How to tell the two `Notification` kinds apart is decided from the real samples 
 
   A match adds the tag `fireline` and stores the ticket key (for example `FIRE-97013`).
 - **First prompt:** the `prompt` field of the first `UserPromptSubmit` event. If there is none, the first user message in the transcript `~/.claude/projects/*/<sessionId>.jsonl`.
-- **Session name:** the name from `names.json` if set, otherwise the `name` from `claude agents --json`.
+- **Session name:** the first of: the name from `names.json`; the WezTerm tab title that Claude Code sets (status icon removed); the first prompt (first 60 characters); "New session". The `name` from `claude agents --json` (e.g. `gis-discover-monorepo-d7`) is not used.
 
 ### Lane
 

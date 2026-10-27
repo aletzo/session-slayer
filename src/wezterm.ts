@@ -3,7 +3,14 @@ import type { Runner } from './run';
 
 const APP_BIN = '/Applications/WezTerm.app/Contents/MacOS/wezterm';
 
-export type Pane = { pane_id: number; tty_name?: string; cwd?: string };
+export type Pane = { pane_id: number; tty_name?: string; cwd?: string; title?: string };
+
+// Claude Code sets the tab title to "<status icon> <short summary>", e.g. "✳ Monorepo migration timeline".
+export function claudeTitle(title: string | undefined): string | undefined {
+  const m = title?.match(/^[^\p{L}\p{N}\s]+\s+(.+)$/u);
+  const t = m?.[1].trim();
+  return t && t !== 'Claude Code' ? t : undefined;
+}
 
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;

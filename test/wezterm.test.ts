@@ -44,3 +44,12 @@ it('ttysForPids and paneForTty', async () => {
   expect([...map]).toEqual([[4100, 'ttys003']]);
   expect(paneForTty([{ pane_id: 1, tty_name: '/dev/ttys003' }], 'ttys003')?.pane_id).toBe(1);
 });
+
+it('claudeTitle strips the status icon and ignores non-Claude titles', async () => {
+  const { claudeTitle } = await import('../src/wezterm');
+  expect(claudeTitle('✳ Monorepo migration timeline')).toBe('Monorepo migration timeline');
+  expect(claudeTitle('◐ Kanban board session tagging')).toBe('Kanban board session tagging');
+  expect(claudeTitle('pnpm')).toBeUndefined();
+  expect(claudeTitle('✳ Claude Code')).toBeUndefined();
+  expect(claudeTitle(undefined)).toBeUndefined();
+});

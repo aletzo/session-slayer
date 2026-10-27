@@ -34,7 +34,7 @@ describe('columnFor', () => {
 });
 
 describe('buildCards', () => {
-  const base = { lastEvent: () => undefined, firstPrompt: () => undefined, names: {}, weztermSessions: new Set<string>(), home: '/h' };
+  const base = { lastEvent: () => undefined, firstPrompt: () => undefined, names: {}, weztermSessions: new Set<string>(), titles: new Map<string, string>(), home: '/h' };
 
   it('keeps columnSince while the column stays, resets when it changes', () => {
     const since = new Map();
@@ -51,4 +51,14 @@ describe('buildCards', () => {
 
 it('lane order: fireline, repos by name, other', () => {
   expect(sortLanes(['other', 'b', 'fireline', 'a'])).toEqual(['fireline', 'a', 'b', 'other']);
+});
+
+it('name order: user name, tab title, first prompt, "New session"; never Claude name', () => {
+  const base = { lastEvent: () => undefined, names: {}, weztermSessions: new Set<string>(), since: new Map(), now: 0, home: '/h' };
+  const s = [live({ name: 'gis-discover-monorepo-d7' })];
+  const n = (o: object) => buildCards({ ...base, titles: new Map(), firstPrompt: () => undefined, sessions: s, ...o })[0];
+  expect(n({ names: { s1: 'mine' }, titles: new Map([['s1', 'Title']]) })).toMatchObject({ name: 'mine', nameSource: 'user' });
+  expect(n({ titles: new Map([['s1', 'Title']]), firstPrompt: () => 'p' })).toMatchObject({ name: 'Title', nameSource: 'title' });
+  expect(n({ firstPrompt: () => 'x'.repeat(80) })).toMatchObject({ name: 'x'.repeat(60), nameSource: 'prompt' });
+  expect(n({})).toMatchObject({ name: 'New session', nameSource: 'none' });
 });

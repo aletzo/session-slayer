@@ -207,7 +207,7 @@ function SessionCard({ card, now, act, canFocus }: { card: Card; now: number; ac
         {card.kind === 'background' && <span className="tag bg">background</span>}
         {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
       </div>
-      {card.firstPrompt && <div className="prompt">{card.firstPrompt}</div>}
+      {card.firstPrompt && card.nameSource !== 'prompt' && <div className="prompt">{card.firstPrompt}</div>}
       {card.column === 'idle' && canFocus && !card.inWezterm && card.kind === 'interactive' && (
         <button
           className="close move"

@@ -40,6 +40,7 @@ export type BoardInput = {
   firstPrompt: (id: string) => string | undefined;
   names: Record<string, string>;
   weztermSessions: Set<string>;
+  titles: Map<string, string>; // sessionId -> Claude tab title
   since: Map<string, { column: Column; since: number }>;
   now: number;
   home: string;
@@ -56,12 +57,22 @@ export function buildCards(input: BoardInput): Card[] {
     const columnSince = prev?.column === column ? prev.since : input.now;
     input.since.set(s.sessionId, { column, since: columnSince });
 
-    const name = input.names[s.sessionId] || s.name || s.sessionId.slice(0, 8);
+    // Claude's own names ("gis-discover-monorepo-d7") say nothing, so they are not used.
     const firstPrompt = input.firstPrompt(s.sessionId);
+    const user = input.names[s.sessionId];
+    const title = input.titles.get(s.sessionId);
+    const [name, nameSource]: [string, Card['nameSource']] = user
+      ? [user, 'user']
+      : title
+        ? [title, 'title']
+        : firstPrompt
+          ? [firstPrompt.slice(0, 60), 'prompt']
+          : ['New session', 'none'];
     const t = tagsFor(s.cwd, firstPrompt, name, input.home);
     return {
       sessionId: s.sessionId,
       name,
+      nameSource,
       column,
       lane: t.lane,
       repo: t.repo,

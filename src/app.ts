@@ -7,7 +7,7 @@ import type { Runner } from './run';
 import { listClaudeSessions } from './sources/claudeAgents';
 import { type EventStore, firstPromptFromTranscript } from './sources/hookEvents';
 import type { Board, Column, LiveSession } from './types';
-import { claudeCommand, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
+import { claudeCommand, claudeTitle, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
 
 export class HttpError extends Error {
   constructor(
@@ -96,6 +96,12 @@ export class App {
       firstPrompt: (id) => this.firstPrompt(id),
       names: this.deps.names.all(),
       weztermSessions: new Set(this.panes.keys()),
+      titles: new Map(
+        [...this.panes].flatMap(([id, p]) => {
+          const t = claudeTitle(p.title);
+          return t ? [[id, t] as [string, string]] : [];
+        }),
+      ),
       since: this.since,
       now,
       home: this.home,
