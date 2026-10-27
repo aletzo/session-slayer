@@ -34,7 +34,7 @@ describe('columnFor', () => {
 });
 
 describe('buildCards', () => {
-  const base = { lastEvent: () => undefined, firstPrompt: () => undefined, names: {}, weztermSessions: new Set<string>(), titles: new Map<string, string>(), home: '/h' };
+  const base = { lastEvent: () => undefined, firstPrompt: () => undefined, names: {}, weztermSessions: new Set<string>(), titles: new Map<string, string>(), branches: new Map([['/h/dev/repo', 'main']]), home: '/h' };
 
   it('keeps columnSince while the column stays, resets when it changes', () => {
     const since = new Map();
@@ -45,7 +45,7 @@ describe('buildCards', () => {
   });
   it('stored name wins over claude name; fireline lane from name', () => {
     const [card] = buildCards({ ...base, sessions: [live({ name: 'auto', cwd: '/h/dev/repo' })], names: { s1: 'FIRE-9 x' }, since: new Map(), now: 0 });
-    expect(card).toMatchObject({ name: 'FIRE-9 x', lane: 'fireline', repo: 'repo', ticket: 'FIRE-9' });
+    expect(card).toMatchObject({ name: 'FIRE-9 x', lane: 'fireline', repo: 'repo', ticket: 'FIRE-9', branch: 'main' });
   });
 });
 
@@ -54,7 +54,7 @@ it('lane order: fireline, repos by name, other', () => {
 });
 
 it('name order: user name, tab title, first prompt, "New session"; never Claude name', () => {
-  const base = { lastEvent: () => undefined, names: {}, weztermSessions: new Set<string>(), since: new Map(), now: 0, home: '/h' };
+  const base = { lastEvent: () => undefined, names: {}, weztermSessions: new Set<string>(), branches: new Map<string, string>(), since: new Map(), now: 0, home: '/h' };
   const s = [live({ name: 'gis-discover-monorepo-d7' })];
   const n = (o: object) => buildCards({ ...base, titles: new Map(), firstPrompt: () => undefined, sessions: s, ...o })[0];
   expect(n({ names: { s1: 'mine' }, titles: new Map([['s1', 'Title']]) })).toMatchObject({ name: 'mine', nameSource: 'user' });

@@ -319,3 +319,7 @@ h1 {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+.tag.branch {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

@@ -30,6 +30,7 @@ export type Card = {
   column: Column;
   lane: string;
   repo?: string;
+  branch?: string;
   ticket?: string;
   tags: string[];
   firstPrompt?: string;

@@ -152,7 +152,7 @@ function Lane(props: { lane: string; showTitle: boolean; cards: Card[]; now: num
             .filter((card) => card.column === c.key)
             .sort((a, b) => a.columnSince - b.columnSince)
             .map((card) => (
-              <SessionCard key={card.sessionId} card={card} now={props.now} act={props.act} canFocus={props.weztermAvailable} />
+              <SessionCard key={card.sessionId} card={card} showRepo={!props.showTitle || card.lane !== card.repo} now={props.now} act={props.act} canFocus={props.weztermAvailable} />
             ))}
         </div>
       ))}
@@ -160,7 +160,7 @@ function Lane(props: { lane: string; showTitle: boolean; cards: Card[]; now: num
   );
 }
 
-function SessionCard({ card, now, act, canFocus }: { card: Card; now: number; act: Act; canFocus: boolean }) {
+function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showRepo: boolean; now: number; act: Act; canFocus: boolean }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(card.name);
   const id = encodeURIComponent(card.sessionId);
@@ -203,7 +203,8 @@ function SessionCard({ card, now, act, canFocus }: { card: Card; now: number; ac
       </div>
       <div className="meta">
         {card.ticket && <span className="tag ticket">{card.ticket}</span>}
-        {card.repo && <span className="tag">{card.repo}</span>}
+        {card.repo && showRepo && <span className="tag">{card.repo}</span>}
+        {card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>}
         {card.kind === 'background' && <span className="tag bg">background</span>}
         {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
       </div>

@@ -20,6 +20,7 @@ const run = async (cmd: string, args: string[]) => {
   if (args[1] === 'list') return JSON.stringify([{ pane_id: 5, tty_name: '/dev/ttys001' }]);
   if (cmd === 'ps') return '100 ttys001\n';
   if (args[1] === 'spawn') return '9';
+  if (cmd === 'git') return 'feature-x\n';
   return '';
 };
 
@@ -53,6 +54,11 @@ it('board', async () => {
     ['done1', 'idle', true],
     ['busy1', 'working', false],
   ]);
+});
+
+it('branch from git', async () => {
+  const b = await (await req('GET', '/api/board')).json();
+  expect(b.cards[0].branch).toBe('feature-x');
 });
 
 it('focus a WezTerm session', async () => {

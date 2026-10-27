@@ -30,6 +30,7 @@ export type AppDeps = {
 export class App {
   private sessions: LiveSession[] = [];
   private panes = new Map<string, Pane>(); // sessionId -> WezTerm pane
+  private branches = new Map<string, string>(); // cwd -> git branch
   private since = new Map<string, { column: Column; since: number }>();
   private transcriptPrompts = new Map<string, string | undefined>();
   private sessionsError?: string;
@@ -54,6 +55,7 @@ export class App {
     }
     this.deps.events.readNew();
     await this.matchPanes();
+    await this.readBranches();
   }
 
   private async matchPanes(): Promise<void> {
@@ -73,6 +75,20 @@ export class App {
       const pane = tty && paneForTty(panes, tty);
       if (pane) this.panes.set(s.sessionId, pane);
     }
+  }
+
+  private async readBranches(): Promise<void> {
+    const cwds = [...new Set(this.sessions.map((s) => s.cwd))];
+    const found = await Promise.all(
+      cwds.map(async (cwd) => {
+        try {
+          return [cwd, (await this.deps.run('git', ['-C', cwd, 'branch', '--show-current'])).trim()] as const;
+        } catch {
+          return [cwd, ''] as const; // not a git repo
+        }
+      }),
+    );
+    this.branches = new Map(found.filter(([, b]) => b));
   }
 
   private firstPrompt(id: string): string | undefined {
@@ -96,6 +112,7 @@ export class App {
       firstPrompt: (id) => this.firstPrompt(id),
       names: this.deps.names.all(),
       weztermSessions: new Set(this.panes.keys()),
+      branches: this.branches,
       titles: new Map(
         [...this.panes].flatMap(([id, p]) => {
           const t = claudeTitle(p.title);

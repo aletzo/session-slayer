@@ -40,6 +40,7 @@ export type BoardInput = {
   firstPrompt: (id: string) => string | undefined;
   names: Record<string, string>;
   weztermSessions: Set<string>;
+  branches: Map<string, string>; // cwd -> git branch
   titles: Map<string, string>; // sessionId -> Claude tab title
   since: Map<string, { column: Column; since: number }>;
   now: number;
@@ -76,6 +77,7 @@ export function buildCards(input: BoardInput): Card[] {
       column,
       lane: t.lane,
       repo: t.repo,
+      branch: input.branches.get(s.cwd),
       ticket: t.ticket,
       tags: t.tags,
       firstPrompt,
