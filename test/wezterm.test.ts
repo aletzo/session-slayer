@@ -47,7 +47,7 @@ it('ttysForPids and paneForTty', async () => {
 
 it('claudeTitle strips the status icon and ignores non-Claude titles', async () => {
   const { claudeTitle } = await import('../src/wezterm');
-  expect(claudeTitle('✳ Monorepo migration timeline')).toBe('Monorepo migration timeline');
+  expect(claudeTitle('✳ Fix login redirect')).toBe('Fix login redirect');
   expect(claudeTitle('◐ Kanban board session tagging')).toBe('Kanban board session tagging');
   expect(claudeTitle('pnpm')).toBeUndefined();
   expect(claudeTitle('✳ Claude Code')).toBeUndefined();

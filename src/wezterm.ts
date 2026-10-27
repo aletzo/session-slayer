@@ -5,7 +5,7 @@ const APP_BIN = '/Applications/WezTerm.app/Contents/MacOS/wezterm';
 
 export type Pane = { pane_id: number; tty_name?: string; cwd?: string; title?: string };
 
-// Claude Code sets the tab title to "<status icon> <short summary>", e.g. "✳ Monorepo migration timeline".
+// Claude Code sets the tab title to "<status icon> <short summary>", e.g. "✳ Fix login redirect".
 export function claudeTitle(title: string | undefined): string | undefined {
   const m = title?.match(/^[^\p{L}\p{N}\s]+\s+(.+)$/u);
   const t = m?.[1].trim();
@@ -26,6 +26,10 @@ export function resumeCommand(sessionId: string): string {
 
 export function opencodeCommand(sessionId?: string): string {
   return `${sessionId ? `opencode -s ${shellQuote(sessionId)}` : 'opencode'}; exec zsh`;
+}
+
+export function codexCommand(sessionId?: string): string {
+  return `${sessionId ? `codex resume ${shellQuote(sessionId)}` : 'codex'}; exec zsh`;
 }
 
 export class WezTerm {

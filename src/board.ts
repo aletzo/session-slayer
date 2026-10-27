@@ -25,7 +25,10 @@ function columnFromEvent(e: SessionEvent): Column | null {
       return e.toolName && ASKING_TOOLS.has(e.toolName) ? 'needs_input' : 'working';
     case 'Notification':
       return e.notificationKind === 'permission' ? 'needs_input' : null;
+    case 'PermissionRequest': // Codex
+      return 'needs_input';
     case 'Stop':
+    case 'Interrupt': // Codex
       return 'idle';
     default:
       return null;
@@ -72,7 +75,7 @@ export function buildCards(input: BoardInput): Card[] {
     const columnSince = prev?.column === column ? prev.since : input.now;
     input.since.set(s.sessionId, { column, since: columnSince });
 
-    // Claude's own names ("gis-discover-monorepo-d7") say nothing, so they are not used.
+    // Claude's own names ("my-repo-d7") say nothing, so they are not used.
     const firstPrompt = input.firstPrompt(s.sessionId);
     const user = input.names[s.sessionId];
     const title = input.titles.get(s.sessionId);
@@ -90,6 +93,7 @@ export function buildCards(input: BoardInput): Card[] {
       nameSource,
       column,
       lane: t.lane,
+      laneKind: t.laneKind,
       repo: t.repo,
       branch: input.branches.get(s.cwd)?.branch,
       worktree: input.branches.get(s.cwd)?.worktree,

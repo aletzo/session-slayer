@@ -3,11 +3,14 @@ import path from 'node:path';
 import { isRelevant } from '../board';
 import type { NotificationKind, SessionEvent } from '../types';
 
-// One line as written by hooks/session-slayer-hook.sh: {"ts": <ms>, "hook": <Claude hook input>}.
+// One line as written by hooks/session-slayer-hook.sh: {"ts": <ms>, "tool"?: "codex", "hook": <hook input>}.
 type Line = {
   ts: number;
+  tool?: string;
   hook: {
     session_id?: string;
+    cwd?: string;
+    model?: string;
     hook_event_name?: string;
     tool_name?: string;
     prompt?: string;
@@ -39,8 +42,14 @@ export function parseLine(line: string): SessionEvent | null {
     toolName: h.tool_name,
     prompt: h.prompt,
     notificationKind: h.hook_event_name === 'Notification' ? notificationKind(h) : undefined,
+    tool: l.tool === 'codex' ? 'codex' : 'claude',
+    cwd: h.cwd,
+    model: h.model,
   };
 }
+
+// What the hook events tell about a session, for tools without a live session list (Codex).
+export type HookSession = { sessionId: string; tool: 'claude' | 'codex'; cwd?: string; model?: string; startedAt: number; lastTs: number };
 
 export class EventStore {
   private offset = 0;
@@ -48,18 +57,20 @@ export class EventStore {
   private last = new Map<string, SessionEvent>();
   private first = new Map<string, string>();
   readonly ended = new Map<string, number>(); // sessionId -> SessionEnd ts
+  private sessions = new Map<string, HookSession>();
 
   constructor(readonly file: string) {}
 
-  // Keeps only lines of live sessions. Called once at start.
-  compact(liveIds: Set<string>): void {
+  // Keeps only lines of live sessions, plus the last week of Codex lines (Codex
+  // sessions are only known from these lines). Called once at start.
+  compact(liveIds: Set<string>, now = Date.now()): void {
     if (!fs.existsSync(this.file)) return;
     const kept = fs
       .readFileSync(this.file, 'utf8')
       .split('\n')
       .filter((line) => {
         const e = parseLine(line);
-        return e && liveIds.has(e.sessionId);
+        return e && (liveIds.has(e.sessionId) || (e.tool === 'codex' && now - e.ts < 7 * 24 * 3600_000));
       });
     fs.writeFileSync(this.file, kept.length ? kept.join('\n') + '\n' : '');
     this.offset = 0;
@@ -94,12 +105,18 @@ export class EventStore {
   }
 
   private add(e: SessionEvent): void {
+    const s = this.sessions.get(e.sessionId) ?? { sessionId: e.sessionId, tool: e.tool ?? 'claude', startedAt: e.ts, lastTs: e.ts };
+    this.sessions.set(e.sessionId, { ...s, cwd: e.cwd ?? s.cwd, model: e.model ?? s.model, lastTs: e.ts });
     if (e.event === 'SessionEnd') this.ended.set(e.sessionId, e.ts);
     else this.ended.delete(e.sessionId); // resumed: same sessionId comes back
     if (e.event === 'UserPromptSubmit' && e.prompt && !this.first.has(e.sessionId)) {
       this.first.set(e.sessionId, e.prompt);
     }
     if (isRelevant(e)) this.last.set(e.sessionId, e);
+  }
+
+  hookSessions(tool: HookSession['tool']): HookSession[] {
+    return [...this.sessions.values()].filter((s) => s.tool === tool && !this.ended.has(s.sessionId));
   }
 
   lastEvent(id: string): SessionEvent | undefined {

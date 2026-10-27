@@ -1,7 +1,7 @@
 export type Column = 'working' | 'needs_input' | 'idle';
 
 export type LiveSession = {
-  tool: 'claude' | 'opencode';
+  tool: 'claude' | 'opencode' | 'codex';
   sessionId: string;
   pid?: number;
   cwd: string;
@@ -23,6 +23,9 @@ export type SessionEvent = {
   toolName?: string;
   prompt?: string;
   notificationKind?: NotificationKind;
+  tool?: 'claude' | 'codex';
+  cwd?: string;
+  model?: string;
 };
 
 export type Card = {
@@ -31,6 +34,7 @@ export type Card = {
   nameSource: 'user' | 'title' | 'prompt' | 'none';
   column: Column;
   lane: string;
+  laneKind: 'ticket' | 'repo' | 'other';
   repo?: string;
   branch?: string;
   worktree?: string;
