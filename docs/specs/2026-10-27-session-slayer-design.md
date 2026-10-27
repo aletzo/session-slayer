@@ -8,7 +8,7 @@ Status: approved in brainstorming, waiting for spec review
 A local tool to watch all running Claude Code sessions on one kanban board.
 
 - See at a glance which sessions are **working**, which **need input**, and which are **idle**.
-- Group sessions into lanes by tag (`fireline` ticket or repo) and filter by tag.
+- Group sessions into lanes by ticket project (`ABC-123` → `ABC`) or repo, and filter by lane.
 - Click a card to jump to that session in the terminal.
 - Start, rename and close sessions from the board.
 - The UI is used with the mouse only. No keyboard navigation is needed.
@@ -20,14 +20,14 @@ Version 1 supports Claude Code only. opencode can be added later (see section 9)
 - opencode sessions.
 - Sending a name set in Session Slayer back into a running Claude session.
 - Moving cards by drag and drop. Cards move on their own.
-- Jumping to sessions that run in a terminal other than WezTerm (for example Warp).
+- Jumping to sessions that run in a terminal other than WezTerm.
 - Browser-driven UI tests.
 
 ## 2. Key decisions
 
 | Topic | Decision | Reason |
 |---|---|---|
-| Terminal | **WezTerm** replaces Warp for Claude sessions | `wezterm cli` can list panes and focus one by id. Warp cannot. Claude Code itself stays exactly the same. |
+| Terminal | **WezTerm** for Claude sessions | `wezterm cli` can list panes and focus one by id. Most terminals cannot. Claude Code itself stays exactly the same. |
 | UI | **Local web page** at `http://127.0.0.1:4545` | Fast to build, mouse friendly. Can be wrapped in a desktop app (Tauri) later without a rewrite. |
 | How state is read | **Session list + hooks** | `claude agents --json` says which sessions are alive. Hooks tell "needs input" apart from "idle". |
 | Hook transport | Hooks **append to a file**, they do not call the server | No events are lost when Session Slayer is not running. |
@@ -54,7 +54,7 @@ Each part has one job. Parts marked "pure" only turn input into output (no files
 |---|---|
 | `src/sources/claudeAgents.ts` | Runs `claude agents --json` every 2 seconds. Returns the live sessions: `sessionId`, `pid`, `cwd`, `name`, `kind`, `status` (interactive) or `state` (background). |
 | `src/sources/hookEvents.ts` | Reads new lines from `events.jsonl`. Keeps, per `sessionId`, the newest event and the first prompt. Compacts the file at start. |
-| `src/tags.ts` (pure) | From `cwd`, first prompt and name: returns the repo tag, the `fireline` tag and the ticket key. |
+| `src/tags.ts` (pure) | From `cwd`, first prompt and name: returns the repo, the ticket key, its project and the lane. |
 | `src/board.ts` (pure) | Merges live sessions, events and names into cards: column, lane, tags, name, time in column. |
 | `src/wezterm.ts` | Finds the WezTerm pane for a `pid`. Focuses, kills and spawns panes. |
 | `src/names.ts` | Reads and writes `names.json` (names set in Session Slayer, by `sessionId`). |
@@ -91,7 +91,7 @@ Rules for the script:
 `pnpm slayer install-hooks`:
 
 - Adds one entry per event above to `~/.claude/settings.json`, pointing to the hook script.
-- Keeps all existing hooks as they are (today: the `rtk` `PreToolUse` hook and the `herdr` `SessionStart` hook).
+- Keeps all existing hooks as they are (for example hooks from other tools).
 - Running it twice does not add duplicates. An entry counts as a duplicate when its `command` points to `session-slayer-hook.sh`.
 - Writes a backup `~/.claude/settings.json.session-slayer.bak` before changing the file.
 
@@ -126,22 +126,22 @@ How to tell the two `Notification` kinds apart is decided from the real samples 
 ### Tags
 
 - **Repo tag:** if `cwd` is `~/dev/<repo>` or a folder inside it, the tag is `<repo>`.
-- **Ticket:** look for the pattern `FIRE-\d+` in this order, and stop at the first match:
+- **Ticket:** look for a ticket key `ABC-123` (2–10 capital letters or digits, a dash, a number; words like `UTF-8` or `SHA-256` are skipped) in this order, and stop at the first match:
   1. `cwd`
   2. first prompt
   3. session name
 
-  A match adds the tag `fireline` and stores the ticket key (for example `FIRE-97013`).
+  The project key (`ABC`) becomes a tag and the lane.
 - **First prompt:** the `prompt` field of the first `UserPromptSubmit` event. If there is none, the first user message in the transcript `~/.claude/projects/*/<sessionId>.jsonl`.
-- **Session name:** the first of: the name from `names.json`; the WezTerm tab title that Claude Code sets (status icon removed); the first prompt (first 60 characters); "New session". The `name` from `claude agents --json` (e.g. `gis-discover-monorepo-d7`) is not used.
+- **Session name:** the first of: the name from `names.json`; the WezTerm tab title that Claude Code sets (status icon removed); the first prompt (first 60 characters); "New session". The `name` from `claude agents --json` (e.g. `my-repo-d7`) is not used.
 
 ### Lane
 
-- `fireline` lane if a ticket was found. A fireline session shows **only** in this lane, never also in its repo lane.
+- The ticket project (`ABC`) if a ticket was found. Such a session shows **only** in this lane, never also in its repo lane.
 - Otherwise the repo lane (`<repo>`).
 - Otherwise the `other` lane.
 
-Lane order: `fireline` first, then repo lanes sorted by name, then `other`.
+Lane order: ticket project lanes first, then repo lanes, then `other`; sorted by name inside each group.
 
 ### Card content
 
@@ -158,20 +158,20 @@ At start, Session Slayer rewrites `events.jsonl` and keeps only the lines whose 
 ## 6. Page layout
 
 ```
-[+ New session]   Tags: (all) (fireline) (GIS-discover-monorepo) (GIS-microservices)
+[+ New session]   Lanes: (all) (ABC) (web-app) (api)   [Search…]
 Lanes: [on|off]
 
              | Working        | Needs input    | Idle
 -------------+----------------+----------------+----------------
-fireline     | [FIRE-97013]   |                |
-             |  GIS-disc… 2m  |                |
+ABC          | [ABC-123 fix]  |                |
+             |  web-app  2m   |                |
 -------------+----------------+----------------+----------------
-GIS-discover-|                | [wiki docs]    | [GIS-6786]
- monorepo    |                |  permission    |  [Close]
+web-app      |                | [docs update]  | [refactor]
+             |                |  permission    |  [Close]
 -------------+----------------+----------------+----------------
 ```
 
-- **Filter chips:** one chip per lane (`fireline`, each repo, `other`). Click a chip to show only that lane; a fireline card shows only under `fireline`, never under its repo. Click "all" to clear the filter.
+- **Filter chips:** one chip per lane (each ticket project, each repo, `other`). Click a chip to show only that lane; a ticket card shows only under its project, never under its repo. Click "all" to clear the filter.
 - **Lanes on/off:** off shows one flat board with the three columns.
 - **Banners** at the top for errors (section 7).
 - The chosen filter and lane switch are kept in `localStorage`.
@@ -202,7 +202,7 @@ GIS-discover-|                | [wiki docs]    | [GIS-6786]
 
 1. Dialog: repo dropdown (folders in `~/dev`), optional name, **Start**.
 2. If WezTerm is not running: `open -a WezTerm` and wait until `wezterm cli list` answers (up to 10 seconds).
-3. Run `wezterm cli spawn --cwd <repo> -- zsh -lic 'claude -n <name>; exec zsh'`. The login shell loads the normal setup (PATH, `rtk`, nvm). If Claude exits, a shell stays open in the tab.
+3. Run `wezterm cli spawn --cwd <repo> -- zsh -lic 'claude -n <name>; exec zsh'`. The login shell loads the normal setup (PATH, nvm, …). If Claude exits, a shell stays open in the tab.
 4. Focus the new pane. The card shows up on the next poll.
 5. Without a name, `-n` is left out and Claude picks its own name.
 
@@ -252,7 +252,7 @@ Install the hook and save real lines and outputs as test fixtures (saved sample 
 | `tags.ts` | Ticket order `cwd` → first prompt → name; `~/dev/<repo>` match; `other`; no ticket |
 | `board.ts` | Table test for every column rule and fallback; `Stop` but `busy`; idle `Notification` ignored; lane order |
 | `hookEvents.ts` | Reads only new lines; skips bad lines; compacts the file at start |
-| `installHooks.ts` | On a copy of the real `settings.json`: adds entries, keeps `rtk` and `herdr`, no duplicates on a second run, writes the backup |
+| `installHooks.ts` | On a copy of the real `settings.json`: adds entries, keeps other tools' hooks, no duplicates on a second run, writes the backup |
 | `wezterm.ts` | With a fake command runner: exact commands and arguments for focus, kill and spawn, including a name with quotes and `;` |
 | `server.ts` | API with fake sources: board JSON, focus / close / rename / new routes, 409 on closing a non-Idle session, error banners |
 
@@ -264,10 +264,10 @@ With 3 real sessions in WezTerm:
 - [ ] A permission prompt moves the card to **Needs input**. Approving moves it back to **Working**.
 - [ ] Turn ends → **Idle**. After 2 minutes of idling it is **still Idle**.
 - [ ] A click jumps to the right tab, also with 2 WezTerm windows open.
-- [ ] A session in a `FIRE-…` folder, or with a `FIRE-…` first prompt, lands in the **fireline** lane.
+- [ ] A session in an `ABC-…` folder, or with an `ABC-…` first prompt, lands in the **ABC** lane.
 - [ ] A rename survives a restart of Session Slayer.
 - [ ] Close removes the card and the pane. `/exit` in the terminal also removes the card.
-- [ ] A session in Warp shows the "not in WezTerm" badge.
+- [ ] A session in another terminal shows the "not in WezTerm" badge.
 
 ## 9. opencode (v2)
 
@@ -281,3 +281,15 @@ opencode v2 runs one background service per user. Its address and password are i
 - **Move to WezTerm:** `opencode -s <sessionId>`.
 - **New session:** the dialog has a Claude Code / opencode switch. opencode has no name option, so the name field is hidden.
 - **Limits:** two windows in the same folder are matched by recency, so they can swap. A permission asked by a subagent (a child session) is not seen.
+
+## 10. Codex
+
+Codex reads Claude-style hooks from `~/.codex/hooks.json`. `pnpm slayer install-hooks` adds entries that run `hooks/session-slayer-hook.sh codex`, so each line in `events.jsonl` gets `"tool": "codex"`. Codex asks the user to review new hooks once.
+
+- **Live sessions:** running `codex` processes (not `app-server` / `mcp`), with their folder from `lsof`. Each window gets the Codex session in that folder with the newest hook event. `SessionEnd` removes a session.
+- **Column:** `UserPromptSubmit`, `PreToolUse`, `PostToolUse` → Working; `PermissionRequest` → Needs input; `Stop`, `Interrupt` → Idle.
+- **Name:** your rename, else the first prompt. A name given in **+ New session** is saved for the session that first appears in the new pane.
+- **Model:** the `model` field of the hook input. No cost.
+- **Move to WezTerm:** `codex resume <sessionId>`.
+- **events.jsonl compaction** keeps Codex lines of the last 7 days, because Codex sessions are only known from these lines.
+- Not yet tested on a real Codex install.
