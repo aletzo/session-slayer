@@ -7,7 +7,7 @@ Status: approved in brainstorming, waiting for spec review
 
 A local tool to watch all running Claude Code sessions on one kanban board.
 
-- See at a glance which sessions are **working**, which **need input**, and which are **done**.
+- See at a glance which sessions are **working**, which **need input**, and which are **idle**.
 - Group sessions into lanes by tag (`fireline` ticket or repo) and filter by tag.
 - Click a card to jump to that session in the terminal.
 - Start, rename and close sessions from the board.
@@ -29,7 +29,7 @@ Version 1 supports Claude Code only. opencode can be added later (see section 9)
 |---|---|---|
 | Terminal | **WezTerm** replaces Warp for Claude sessions | `wezterm cli` can list panes and focus one by id. Warp cannot. Claude Code itself stays exactly the same. |
 | UI | **Local web page** at `http://127.0.0.1:4545` | Fast to build, mouse friendly. Can be wrapped in a desktop app (Tauri) later without a rewrite. |
-| How state is read | **Session list + hooks** | `claude agents --json` says which sessions are alive. Hooks tell "needs input" apart from "done". |
+| How state is read | **Session list + hooks** | `claude agents --json` says which sessions are alive. Hooks tell "needs input" apart from "idle". |
 | Hook transport | Hooks **append to a file**, they do not call the server | No events are lost when Session Slayer is not running. |
 | Stack | Node + TypeScript, pnpm, React + Vite, Vitest | The stack the author uses every day. |
 
@@ -112,12 +112,12 @@ The newest hook event of the session decides the column:
 | `PreToolUse` with `tool_name` = `AskUserQuestion` or `ExitPlanMode` | **Needs input** |
 | `Notification` for a permission prompt | **Needs input** |
 | `Notification` for plain idling ("waiting for your input" after about 60 s) | ignored — the column does not change |
-| `Stop` | **Done** |
+| `Stop` | **Idle** |
 
 Fallbacks:
 
 1. **No events for the session** (it started before the hooks were installed):
-   - interactive: `status: busy` → Working, `status: idle` → Done
+   - interactive: `status: busy` → Working, `status: idle` → Idle
    - background: `state: blocked` → Needs input; any other `state` → Working
 2. **Newest event is `Stop` but `status` is `busy`:** Working. This covers a missed event.
 
@@ -150,7 +150,7 @@ Lane order: `fireline` first, then repo lanes sorted by name, then `other`.
 - First prompt, cut to one line
 - Time in the current column (for example "4m")
 - "not in WezTerm" badge when no WezTerm pane matches the session
-- **Close** button, on Done cards only
+- **Close** button, on Idle cards only
 
 ### Keeping `events.jsonl` small
 
@@ -162,7 +162,7 @@ At start, Session Slayer rewrites `events.jsonl` and keeps only the lines whose 
 [+ New session]   Tags: (all) (fireline) (GIS-discover-monorepo) (GIS-microservices)
 Lanes: [on|off]
 
-             | Working        | Needs input    | Done
+             | Working        | Needs input    | Idle
 -------------+----------------+----------------+----------------
 fireline     | [FIRE-97013]   |                |
              |  GIS-disc… 2m  |                |
@@ -188,11 +188,11 @@ GIS-discover-|                | [wiki docs]    | [GIS-6786]
    - interactive session: show a message with the terminal device; the card already has the "not in WezTerm" badge.
    - background session: open a new WezTerm tab attached to it. The attach command is confirmed during build; if Claude has no direct attach command, the tab runs `claude agents`.
 
-### Close (Done cards only)
+### Close (Idle cards only)
 
 - In WezTerm: `wezterm cli kill-pane --pane-id <N>`.
 - Not in WezTerm: send SIGTERM to the `pid`.
-- No confirm step. A Done session is idle and can be brought back with `claude --resume <sessionId>`.
+- No confirm step. A Idle session is idle and can be brought back with `claude --resume <sessionId>`.
 
 ### Rename
 
@@ -216,7 +216,7 @@ GIS-discover-|                | [wiki docs]    | [GIS-6786]
 | `GET /api/repos` | Folder names in `~/dev` |
 | `POST /api/sessions` | New session. Body: `{ repo, name? }` |
 | `POST /api/sessions/:sessionId/focus` | Jump to the session |
-| `POST /api/sessions/:sessionId/close` | Close the session (only when its column is Done; otherwise HTTP 409) |
+| `POST /api/sessions/:sessionId/close` | Close the session (only when its column is Idle; otherwise HTTP 409) |
 | `PUT /api/sessions/:sessionId/name` | Rename. Body: `{ name }`. An empty name removes the stored name. |
 
 ### Errors
@@ -255,7 +255,7 @@ Install the hook and save real lines and outputs as test fixtures (saved sample 
 | `hookEvents.ts` | Reads only new lines; skips bad lines; compacts the file at start |
 | `installHooks.ts` | On a copy of the real `settings.json`: adds entries, keeps `rtk` and `herdr`, no duplicates on a second run, writes the backup |
 | `wezterm.ts` | With a fake command runner: exact commands and arguments for focus, kill and spawn, including a name with quotes and `;` |
-| `server.ts` | API with fake sources: board JSON, focus / close / rename / new routes, 409 on closing a non-Done session, error banners |
+| `server.ts` | API with fake sources: board JSON, focus / close / rename / new routes, 409 on closing a non-Idle session, error banners |
 
 ### Manual check before version 1 is done
 
@@ -263,7 +263,7 @@ With 3 real sessions in WezTerm:
 
 - [ ] New session from the board opens a tab and the card shows up in **Working**.
 - [ ] A permission prompt moves the card to **Needs input**. Approving moves it back to **Working**.
-- [ ] Turn ends → **Done**. After 2 minutes of idling it is **still Done**.
+- [ ] Turn ends → **Idle**. After 2 minutes of idling it is **still Idle**.
 - [ ] A click jumps to the right tab, also with 2 WezTerm windows open.
 - [ ] A session in a `FIRE-…` folder, or with a `FIRE-…` first prompt, lands in the **fireline** lane.
 - [ ] A rename survives a restart of Session Slayer.

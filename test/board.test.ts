@@ -14,17 +14,17 @@ describe('columnFor', () => {
     ['PreToolUse', { toolName: 'AskUserQuestion' }, 'needs_input'],
     ['PreToolUse', { toolName: 'ExitPlanMode' }, 'needs_input'],
     ['Notification', { notificationKind: 'permission' }, 'needs_input'],
-    ['Stop', {}, 'done'],
+    ['Stop', {}, 'idle'],
   ] as const)('%s %o -> %s', (event, extra, col) => {
     expect(columnFor(live(), ev(event, extra))).toBe(col);
   });
 
   it('idle notification has no opinion: falls back to status', () => {
-    expect(columnFor(live({ status: 'idle' }), ev('Notification', { notificationKind: 'idle' }))).toBe('done');
+    expect(columnFor(live({ status: 'idle' }), ev('Notification', { notificationKind: 'idle' }))).toBe('idle');
   });
   it('no events: busy/idle and background state', () => {
     expect(columnFor(live({ status: 'busy' }), undefined)).toBe('working');
-    expect(columnFor(live({ status: 'idle' }), undefined)).toBe('done');
+    expect(columnFor(live({ status: 'idle' }), undefined)).toBe('idle');
     expect(columnFor(live({ kind: 'background', state: 'blocked' }), undefined)).toBe('needs_input');
     expect(columnFor(live({ kind: 'background', state: 'running' }), undefined)).toBe('working');
   });

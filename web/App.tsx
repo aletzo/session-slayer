@@ -5,7 +5,7 @@ import type { Board, Card, Column } from '../src/types';
 const COLUMNS: { key: Column; title: string }[] = [
   { key: 'working', title: 'Working' },
   { key: 'needs_input', title: 'Needs input' },
-  { key: 'done', title: 'Done' },
+  { key: 'idle', title: 'Idle' },
 ];
 
 function load<T>(key: string, fallback: T): T {
@@ -208,7 +208,7 @@ function SessionCard({ card, now, act, canFocus }: { card: Card; now: number; ac
         {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
       </div>
       {card.firstPrompt && <div className="prompt">{card.firstPrompt}</div>}
-      {card.column === 'done' && canFocus && !card.inWezterm && card.kind === 'interactive' && (
+      {card.column === 'idle' && canFocus && !card.inWezterm && card.kind === 'interactive' && (
         <button
           className="close move"
           title="Stops Claude in the other terminal and resumes this session in a new WezTerm tab"
@@ -220,7 +220,7 @@ function SessionCard({ card, now, act, canFocus }: { card: Card; now: number; ac
           Move to WezTerm
         </button>
       )}
-      {card.column === 'done' && (
+      {card.column === 'idle' && (
         <button
           className="close"
           onClick={(e) => {

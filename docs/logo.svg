@@ -46,7 +46,7 @@
   <path d="M132 240 L236 226 L256 240 L276 226 L380 240 L384 258 L352 302 L290 316 L256 338 L222 316 L160 302 L128 258 Z"
         fill="url(#visor)" stroke="#e0a030" stroke-width="5" stroke-linejoin="round"/>
 
-  <!-- kanban columns reflected in the visor: working / needs input / done -->
+  <!-- kanban columns reflected in the visor: working / needs input / idle -->
   <g>
     <rect x="186" y="254" width="26" height="12" rx="3" fill="#4ade80"/>
     <rect x="186" y="270" width="26" height="12" rx="3" fill="#4ade80"/>

@@ -50,7 +50,7 @@ const req = (method: string, p: string, body?: unknown) =>
 it('board', async () => {
   const b = await (await req('GET', '/api/board')).json();
   expect(b.cards.map((c: { sessionId: string; column: string; inWezterm: boolean }) => [c.sessionId, c.column, c.inWezterm])).toEqual([
-    ['done1', 'done', true],
+    ['done1', 'idle', true],
     ['busy1', 'working', false],
   ]);
 });
@@ -66,7 +66,7 @@ it('focus outside WezTerm returns a message', async () => {
   expect(r.message).toMatch(/Not in WezTerm/);
 });
 
-it('close: 409 when not done, kills the pane when done', async () => {
+it('close: 409 when not idle, kills the pane when idle', async () => {
   expect((await req('POST', '/api/sessions/busy1/close')).status).toBe(409);
   calls.length = 0;
   expect((await req('POST', '/api/sessions/done1/close')).status).toBe(200);
@@ -91,7 +91,7 @@ it('unknown session -> 404', async () => {
   expect((await req('POST', '/api/sessions/nope/focus')).status).toBe(404);
 });
 
-it('move: 409 when in WezTerm or not done', async () => {
+it('move: 409 when in WezTerm or not idle', async () => {
   expect((await req('POST', '/api/sessions/busy1/move')).status).toBe(409);
 });
 

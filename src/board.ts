@@ -14,7 +14,7 @@ function columnFromEvent(e: SessionEvent): Column | null {
     case 'Notification':
       return e.notificationKind === 'permission' ? 'needs_input' : null;
     case 'Stop':
-      return 'done';
+      return 'idle';
     default:
       return null;
   }
@@ -24,9 +24,9 @@ export function columnFor(s: LiveSession, last: SessionEvent | undefined): Colum
   const fromEvent = last && columnFromEvent(last);
   if (!fromEvent) {
     if (s.kind === 'background') return s.state === 'blocked' ? 'needs_input' : 'working';
-    return s.status === 'busy' ? 'working' : 'done';
+    return s.status === 'busy' ? 'working' : 'idle';
   }
-  if (fromEvent === 'done' && s.status === 'busy') return 'working';
+  if (fromEvent === 'idle' && s.status === 'busy') return 'working';
   return fromEvent;
 }
 

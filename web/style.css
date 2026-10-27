@@ -6,7 +6,7 @@
   --line: #e6e6e7;
   --working: #16a34a;
   --needs: #f97316;
-  --done: #84848c;
+  --idle: #84848c;
   --fire: #e0301e;
   --accent: #4a5f26;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -139,8 +139,8 @@ h1 {
   border-color: var(--needs);
 }
 
-.col-title.done {
-  border-color: var(--done);
+.col-title.idle {
+  border-color: var(--idle);
 }
 
 .count {
@@ -175,7 +175,7 @@ h1 {
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-left: 4px solid var(--done);
+  border-left: 4px solid var(--idle);
   border-radius: 8px;
   padding: 8px 10px;
 }

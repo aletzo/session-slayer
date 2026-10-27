@@ -128,7 +128,7 @@ export class App {
 
   async close(id: string): Promise<void> {
     const card = this.card(id);
-    if (card.column !== 'done') throw new HttpError(409, 'only Done sessions can be closed');
+    if (card.column !== 'idle') throw new HttpError(409, 'only Idle sessions can be closed');
     const pane = this.panes.get(id);
     if (pane) return this.deps.wezterm.kill(pane.pane_id);
     const pid = this.sessions.find((s) => s.sessionId === id)?.pid;
@@ -136,10 +136,10 @@ export class App {
     process.kill(pid, 'SIGTERM');
   }
 
-  // Stops a Done session running outside WezTerm and resumes it in a new WezTerm tab.
+  // Stops an Idle session running outside WezTerm and resumes it in a new WezTerm tab.
   async moveToWezterm(id: string, waitForExit = waitForPidExit): Promise<void> {
     const card = this.card(id);
-    if (card.column !== 'done') throw new HttpError(409, 'only Done sessions can be moved');
+    if (card.column !== 'idle') throw new HttpError(409, 'only Idle sessions can be moved');
     if (card.inWezterm) throw new HttpError(409, 'already in WezTerm');
     const pid = this.sessions.find((s) => s.sessionId === id)?.pid;
     if (!pid) throw new HttpError(409, 'background sessions cannot be moved');

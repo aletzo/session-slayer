@@ -1,4 +1,4 @@
-export type Column = 'working' | 'needs_input' | 'done';
+export type Column = 'working' | 'needs_input' | 'idle';
 
 export type LiveSession = {
   tool: 'claude' | 'opencode';
