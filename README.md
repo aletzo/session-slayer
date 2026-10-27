@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" alt="Session Slayer logo" width="160"></p>
+
 # Session Slayer
 
 A local kanban board for your AI coding sessions. It shows every running **Claude Code**, **opencode** and **Codex** session as a card in one of three columns:
