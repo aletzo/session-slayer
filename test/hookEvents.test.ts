@@ -61,3 +61,20 @@ it('a later event after SessionEnd clears it (resumed session)', () => {
   s.readNew();
   expect(s.ended.has('a')).toBe(false);
 });
+
+it('columnSince: start of the current column streak, kept across restarts', () => {
+  const f = tmp();
+  fs.writeFileSync(
+    f,
+    line({ session_id: 'a', hook_event_name: 'UserPromptSubmit' }, 10) +
+      line({ session_id: 'a', hook_event_name: 'PreToolUse', tool_name: 'Bash' }, 20) +
+      line({ session_id: 'a', hook_event_name: 'Stop' }, 30) +
+      line({ session_id: 'a', hook_event_name: 'Notification', notification_type: 'idle_prompt' }, 40),
+  );
+  const s = new EventStore(f);
+  s.readNew();
+  expect(s.columnSince('a')).toEqual({ column: 'idle', since: 30 });
+  fs.appendFileSync(f, line({ session_id: 'a', hook_event_name: 'UserPromptSubmit' }, 50) + line({ session_id: 'a', hook_event_name: 'PostToolUse' }, 60));
+  s.readNew();
+  expect(s.columnSince('a')).toEqual({ column: 'working', since: 50 });
+});

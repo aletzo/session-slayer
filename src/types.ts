@@ -8,6 +8,7 @@ export type LiveSession = {
   name?: string;
   kind: 'interactive' | 'background';
   startedAt?: number;
+  columnSince?: number; // when the session entered its current column, if the source knows
   costUsd?: number;
   model?: string;
   status?: string;

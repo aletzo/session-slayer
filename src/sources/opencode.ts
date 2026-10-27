@@ -14,7 +14,7 @@ export type OcSession = {
   model?: { id?: string };
   parentID?: string;
   title?: string;
-  time: { created: number; updated: number; viewed?: number };
+  time: { created: number; updated: number; viewed?: number; idle?: number };
   location: { directory: string };
 };
 export type OcWindow = { pid: number; cwd: string };
@@ -114,6 +114,7 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
         name: session.title,
         kind: 'interactive' as const,
         startedAt: session.time.created,
+        columnSince: !active[session.id] && !waiting ? (session.time.idle ?? session.time.updated) : undefined,
         costUsd: session.cost,
         model: session.model?.id?.split('/').pop(),
         status: active[session.id] ? 'busy' : 'idle',

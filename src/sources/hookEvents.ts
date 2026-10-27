@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { isRelevant } from '../board';
-import type { NotificationKind, SessionEvent } from '../types';
+import { columnFromEvent } from '../board';
+import type { Column, NotificationKind, SessionEvent } from '../types';
 
 // One line as written by hooks/session-slayer-hook.sh: {"ts": <ms>, "tool"?: "codex", "hook": <hook input>}.
 type Line = {
@@ -58,6 +58,7 @@ export class EventStore {
   private first = new Map<string, string>();
   readonly ended = new Map<string, number>(); // sessionId -> SessionEnd ts
   private sessions = new Map<string, HookSession>();
+  private streak = new Map<string, { column: Column; since: number }>(); // current column and when it began
 
   constructor(readonly file: string) {}
 
@@ -112,11 +113,19 @@ export class EventStore {
     if (e.event === 'UserPromptSubmit' && e.prompt && !this.first.has(e.sessionId)) {
       this.first.set(e.sessionId, e.prompt);
     }
-    if (isRelevant(e)) this.last.set(e.sessionId, e);
+    const column = columnFromEvent(e);
+    if (column) {
+      this.last.set(e.sessionId, e);
+      if (this.streak.get(e.sessionId)?.column !== column) this.streak.set(e.sessionId, { column, since: e.ts });
+    }
   }
 
   hookSessions(tool: HookSession['tool']): HookSession[] {
     return [...this.sessions.values()].filter((s) => s.tool === tool && !this.ended.has(s.sessionId));
+  }
+
+  columnSince(id: string): { column: Column; since: number } | undefined {
+    return this.streak.get(id);
   }
 
   lastEvent(id: string): SessionEvent | undefined {

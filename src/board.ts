@@ -16,7 +16,7 @@ export function parseGitInfo(out: string): GitInfo {
 const ASKING_TOOLS = new Set(['AskUserQuestion', 'ExitPlanMode']);
 
 // The newest relevant event decides the column; null means "no opinion" (idle notifications).
-function columnFromEvent(e: SessionEvent): Column | null {
+export function columnFromEvent(e: SessionEvent): Column | null {
   switch (e.event) {
     case 'UserPromptSubmit':
     case 'PostToolUse':
@@ -47,10 +47,6 @@ export function columnFor(s: LiveSession, last: SessionEvent | undefined): Colum
   return fromEvent;
 }
 
-export function isRelevant(e: SessionEvent): boolean {
-  return columnFromEvent(e) !== null;
-}
-
 export type BoardInput = {
   sessions: LiveSession[];
   lastEvent: (id: string) => SessionEvent | undefined;
@@ -60,6 +56,7 @@ export type BoardInput = {
   branches: Map<string, GitInfo>; // cwd -> git branch / worktree
   titles: Map<string, string>; // sessionId -> Claude tab title
   since: Map<string, { column: Column; since: number }>;
+  eventSince?: (id: string) => { column: Column; since: number } | undefined; // from stored hook events
   now: number;
   home: string;
 };
@@ -71,8 +68,11 @@ export function buildCards(input: BoardInput): Card[] {
 
   return input.sessions.map((s) => {
     const column = columnFor(s, input.lastEvent(s.sessionId));
+    // Prefer times from the data (they survive restarts); fall back to when this server first saw the column.
+    const ev = input.eventSince?.(s.sessionId);
     const prev = input.since.get(s.sessionId);
-    const columnSince = prev?.column === column ? prev.since : input.now;
+    const columnSince =
+      ev?.column === column ? ev.since : s.columnSince !== undefined ? s.columnSince : prev?.column === column ? prev.since : input.now;
     input.since.set(s.sessionId, { column, since: columnSince });
 
     // Claude's own names ("my-repo-d7") say nothing, so they are not used.

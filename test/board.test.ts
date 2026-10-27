@@ -70,3 +70,12 @@ it('parseGitInfo: branch, detached HEAD, linked worktree', async () => {
   expect(parseGitInfo('HEAD\n/r\n/r/.git\n/r/.git\n')).toEqual({ branch: undefined, worktree: undefined });
   expect(parseGitInfo('feat\n/r/.claude/worktrees/fix-x\n/r/.git/worktrees/fix-x\n/r/.git\n')).toEqual({ branch: 'feat', worktree: 'fix-x' });
 });
+
+it('columnSince prefers the event time, then the source time, then first seen', () => {
+  const base = { lastEvent: () => undefined, firstPrompt: () => undefined, names: {}, weztermSessions: new Set<string>(), titles: new Map(), branches: new Map(), home: '/h', now: 999 };
+  const card = (o: object) => buildCards({ ...base, sessions: [live()], since: new Map(), ...o })[0].columnSince;
+  expect(card({ eventSince: () => ({ column: 'idle', since: 5 }) })).toBe(5);
+  expect(card({ eventSince: () => ({ column: 'working', since: 5 }) })).toBe(999); // event column disagrees
+  expect(buildCards({ ...base, sessions: [live({ columnSince: 7 })], since: new Map() })[0].columnSince).toBe(7);
+  expect(card({})).toBe(999);
+});

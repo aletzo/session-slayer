@@ -149,6 +149,7 @@ export class App {
         return endTs === undefined || (s.startedAt ?? 0) > endTs;
       }),
       lastEvent: (id) => this.deps.events.lastEvent(id),
+      eventSince: (id) => this.deps.events.columnSince(id),
       firstPrompt: (id) => this.firstPrompt(id),
       names: this.deps.names.all(),
       weztermSessions: new Set(this.panes.keys()),
