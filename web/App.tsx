@@ -242,6 +242,7 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
           ) : (
             card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>
           )}
+          {card.tool === 'opencode' ? <span className="tag oc">opencode</span> : <span className="tag cc">claude code</span>}
           {card.kind === 'background' && <span className="tag bg">background</span>}
           {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
         </div>
@@ -267,6 +268,7 @@ function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
   const [repos, setRepos] = useState<string[]>([]);
   const [repo, setRepo] = useState('');
   const [name, setName] = useState('');
+  const [tool, setTool] = useState<'claude' | 'opencode'>(() => load('newTool', 'claude'));
 
   useEffect(() => {
     fetch('/api/repos')
@@ -278,7 +280,8 @@ function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
   }, []);
 
   const start = async () => {
-    await act(() => api('POST', '/api/sessions', { repo, name }));
+    save('newTool', tool);
+    await act(() => api('POST', '/api/sessions', { repo, name, tool }));
     onClose();
   };
 
@@ -294,10 +297,19 @@ function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
             ))}
           </select>
         </label>
-        <label>
-          Name (optional)
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. FIRE-12345 missing docs" />
-        </label>
+        <div className="tool-switch">
+          {(['claude', 'opencode'] as const).map((t) => (
+            <button key={t} className={tool === t ? 'chip on' : 'chip'} onClick={() => setTool(t)}>
+              {t === 'claude' ? 'Claude Code' : 'opencode'}
+            </button>
+          ))}
+        </div>
+        {tool === 'claude' && (
+          <label>
+            Name (optional)
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. FIRE-12345 missing docs" />
+          </label>
+        )}
         <div className="actions">
           <button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!repo} onClick={start}>

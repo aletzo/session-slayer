@@ -269,13 +269,15 @@ With 3 real sessions in WezTerm:
 - [ ] Close removes the card and the pane. `/exit` in the terminal also removes the card.
 - [ ] A session in Warp shows the "not in WezTerm" badge.
 
-## 9. Later: opencode
+## 9. opencode (v2)
 
-Both sources in `src/sources/` return the same shape:
+opencode v2 runs one background service per user. Its address and password are in `~/.local/state/opencode/service.json`. No plugin is needed. `src/sources/opencode.ts` reads it on every poll:
 
-```ts
-type LiveSession = { tool: 'claude' | 'opencode'; sessionId: string; pid?: number; cwd: string; name?: string; kind: 'interactive' | 'background'; status?: string; state?: string };
-type SessionEvent = { sessionId: string; event: string; ts: number; toolName?: string; prompt?: string; notificationKind?: 'permission' | 'idle' | 'other' };
-```
-
-An opencode source returns the same shapes with `tool: 'opencode'`. `board.ts`, `tags.ts` and the page do not change.
+- **Windows:** running `opencode` processes, without the `opencode serve --service` process. Their folder comes from `lsof -d cwd`.
+- **Sessions:** `GET /api/session` (newest 200). Each window gets the top-level session (no `parentID`) in its folder with the newest `time.updated` or `time.viewed`. One session per window.
+- **Column:** pending items in `GET /api/session/{id}/permission` or `GET /api/session/{id}/form` mean **Needs input**. A session in `GET /api/session/active` means **Working**. Otherwise **Idle**.
+- **Name:** the session `title` (counts as a title in the name order). Your rename still wins.
+- **Jump, Close, branch, lanes:** the same as Claude, by `pid`.
+- **Move to WezTerm:** `opencode -s <sessionId>`.
+- **New session:** the dialog has a Claude Code / opencode switch. opencode has no name option, so the name field is hidden.
+- **Limits:** two windows in the same folder are matched by recency, so they can swap. A permission asked by a subagent (a child session) is not seen.

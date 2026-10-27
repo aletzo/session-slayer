@@ -45,7 +45,7 @@ export function createServer(app: App, staticDir?: string): http.Server & { broa
       }
       if (req.method === 'POST' && p === '/api/sessions') {
         const b = await body(req);
-        await app.newSession(b.repo, b.name);
+        await app.newSession(b.repo, b.name, b.tool === 'opencode' ? 'opencode' : 'claude');
         return send(res, 200, {});
       }
       if (m && req.method === 'POST' && m[2] === 'focus') return send(res, 200, await app.focus(m[1]));

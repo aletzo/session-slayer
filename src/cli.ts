@@ -7,6 +7,7 @@ import { Names } from './names';
 import { run } from './run';
 import { createServer } from './server';
 import { EventStore } from './sources/hookEvents';
+import { listOpencodeSessions } from './sources/opencode';
 import { WezTerm } from './wezterm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -19,6 +20,7 @@ async function serve(): Promise<void> {
     events: new EventStore(path.join(dataDir, 'events.jsonl')),
     names: new Names(path.join(dataDir, 'names.json')),
     wezterm: new WezTerm(run),
+    listOpencode: () => listOpencodeSessions(run),
   });
   await app.poll();
   const server = createServer(app, path.join(root, 'dist', 'web'));

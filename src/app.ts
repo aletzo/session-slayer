@@ -7,7 +7,7 @@ import type { Runner } from './run';
 import { listClaudeSessions } from './sources/claudeAgents';
 import { type EventStore, firstPromptFromTranscript } from './sources/hookEvents';
 import type { Board, Column, LiveSession } from './types';
-import { claudeCommand, claudeTitle, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
+import { claudeCommand, claudeTitle, opencodeCommand, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
 
 export class HttpError extends Error {
   constructor(
@@ -25,6 +25,7 @@ export type AppDeps = {
   wezterm: WezTerm;
   home?: string;
   listSessions?: () => Promise<LiveSession[]>;
+  listOpencode?: () => Promise<LiveSession[]>;
 };
 
 export class App {
@@ -34,6 +35,7 @@ export class App {
   private since = new Map<string, { column: Column; since: number }>();
   private transcriptPrompts = new Map<string, string | undefined>();
   private sessionsError?: string;
+  private opencodeError?: string;
   private weztermAvailable = false;
   private compacted = false;
   readonly home: string;
@@ -43,12 +45,21 @@ export class App {
   }
 
   async poll(): Promise<void> {
+    let claude = this.sessions.filter((s) => s.tool === 'claude');
+    let opencode = this.sessions.filter((s) => s.tool === 'opencode');
     try {
-      this.sessions = await (this.deps.listSessions ?? (() => listClaudeSessions(this.deps.run)))();
+      claude = await (this.deps.listSessions ?? (() => listClaudeSessions(this.deps.run)))();
       this.sessionsError = undefined;
     } catch (e) {
       this.sessionsError = `can't read sessions: ${(e as Error).message}`;
     }
+    try {
+      if (this.deps.listOpencode) opencode = await this.deps.listOpencode();
+      this.opencodeError = undefined;
+    } catch (e) {
+      this.opencodeError = `can't read opencode sessions: ${(e as Error).message}`;
+    }
+    this.sessions = [...claude, ...opencode];
     if (!this.compacted && !this.sessionsError) {
       this.deps.events.compact(new Set(this.sessions.map((s) => s.sessionId)));
       this.compacted = true;
@@ -114,17 +125,19 @@ export class App {
       names: this.deps.names.all(),
       weztermSessions: new Set(this.panes.keys()),
       branches: this.branches,
-      titles: new Map(
-        [...this.panes].flatMap(([id, p]) => {
+      titles: new Map([
+        ...[...this.panes].flatMap(([id, p]) => {
           const t = claudeTitle(p.title);
           return t ? [[id, t] as [string, string]] : [];
         }),
-      ),
+        // opencode keeps real titles on the session itself
+        ...this.sessions.filter((s) => s.tool === 'opencode' && s.name).map((s) => [s.sessionId, s.name!] as [string, string]),
+      ]),
       since: this.since,
       now,
       home: this.home,
     });
-    const errors = [this.sessionsError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];
+    const errors = [this.sessionsError, this.opencodeError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];
     return { cards, errors: errors.filter((e): e is string => !!e), weztermAvailable: this.weztermAvailable };
   }
 
@@ -169,7 +182,7 @@ export class App {
     if (!pid) throw new HttpError(409, 'background sessions cannot be moved');
     process.kill(pid, 'SIGTERM');
     await waitForExit(pid);
-    await this.deps.wezterm.spawn(card.cwd, resumeCommand(id));
+    await this.deps.wezterm.spawn(card.cwd, card.tool === 'opencode' ? opencodeCommand(id) : resumeCommand(id));
   }
 
   rename(id: string, name: string): void {
@@ -186,9 +199,10 @@ export class App {
       .sort((a, b) => a.localeCompare(b));
   }
 
-  async newSession(repo: string, name?: string): Promise<void> {
+  async newSession(repo: string, name?: string, tool: LiveSession['tool'] = 'claude'): Promise<void> {
     if (!this.repos().includes(repo)) throw new HttpError(400, 'unknown repo');
-    await this.deps.wezterm.spawn(path.join(this.home, 'dev', repo), claudeCommand(name?.trim() || undefined));
+    const cmd = tool === 'opencode' ? opencodeCommand() : claudeCommand(name?.trim() || undefined);
+    await this.deps.wezterm.spawn(path.join(this.home, 'dev', repo), cmd);
   }
 }
 

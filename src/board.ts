@@ -33,6 +33,8 @@ function columnFromEvent(e: SessionEvent): Column | null {
 }
 
 export function columnFor(s: LiveSession, last: SessionEvent | undefined): Column {
+  // opencode state comes from its service, not from hook events
+  if (s.tool === 'opencode') return s.state === 'blocked' ? 'needs_input' : s.status === 'busy' ? 'working' : 'idle';
   const fromEvent = last && columnFromEvent(last);
   if (!fromEvent) {
     if (s.kind === 'background') return s.state === 'blocked' ? 'needs_input' : 'working';
@@ -96,6 +98,7 @@ export function buildCards(input: BoardInput): Card[] {
       firstPrompt,
       columnSince,
       kind: s.kind,
+      tool: s.tool,
       cwd: s.cwd,
       inWezterm: input.weztermSessions.has(s.sessionId),
     };

@@ -37,6 +37,7 @@ export type Card = {
   firstPrompt?: string;
   columnSince: number;
   kind: LiveSession['kind'];
+  tool: LiveSession['tool'];
   cwd: string;
   inWezterm: boolean;
 };

@@ -24,6 +24,10 @@ export function resumeCommand(sessionId: string): string {
   return `claude --resume ${shellQuote(sessionId)}; exec zsh`;
 }
 
+export function opencodeCommand(sessionId?: string): string {
+  return `${sessionId ? `opencode -s ${shellQuote(sessionId)}` : 'opencode'}; exec zsh`;
+}
+
 export class WezTerm {
   constructor(
     private run: Runner,

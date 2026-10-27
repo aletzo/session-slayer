@@ -53,3 +53,9 @@ it('claudeTitle strips the status icon and ignores non-Claude titles', async () 
   expect(claudeTitle('✳ Claude Code')).toBeUndefined();
   expect(claudeTitle(undefined)).toBeUndefined();
 });
+
+it('opencodeCommand', async () => {
+  const { opencodeCommand } = await import('../src/wezterm');
+  expect(opencodeCommand()).toBe('opencode; exec zsh');
+  expect(opencodeCommand('ses_1')).toBe("opencode -s 'ses_1'; exec zsh");
+});
