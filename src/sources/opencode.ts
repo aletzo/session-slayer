@@ -27,22 +27,27 @@ function readService(file = SERVICE_FILE): Service | undefined {
   }
 }
 
-async function api<T>(svc: Service, p: string): Promise<T> {
+async function api<T>(svc: Service, p: string, body?: unknown): Promise<T> {
   const res = await fetch(svc.url + p, {
-    headers: { authorization: `Basic ${Buffer.from(`opencode:${svc.password}`).toString('base64')}` },
+    method: body ? 'POST' : 'GET',
+    headers: {
+      authorization: `Basic ${Buffer.from(`opencode:${svc.password}`).toString('base64')}`,
+      ...(body ? { 'content-type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) throw new Error(`opencode ${p}: HTTP ${res.status}`);
   return ((await res.json()) as { data: T }).data;
 }
 
-// Running opencode terminal windows (not the background service) and their folders.
-export async function listWindows(run: Runner): Promise<OcWindow[]> {
+// Running terminal windows of `bin` (not its background processes) and their folders.
+export async function listWindows(run: Runner, bin = 'opencode', notWindow = /\bserve\b/): Promise<OcWindow[]> {
   const ps = await run('ps', ['-axo', 'pid=,args=']);
   const pids = ps
     .split('\n')
     .map((l) => l.trim().match(/^(\d+)\s+(\S+)(.*)$/))
-    .filter((m): m is RegExpMatchArray => !!m && path.basename(m[2]) === 'opencode' && !/\bserve\b/.test(m[3]))
+    .filter((m): m is RegExpMatchArray => !!m && path.basename(m[2]) === bin && !notWindow.test(m[3]))
     .map((m) => Number(m[1]));
   if (!pids.length) return [];
   let out = '';
@@ -117,4 +122,11 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
     }),
   );
   return { sessions: live, todayUsd: todayCost(sessions) };
+}
+
+// Creates an empty session with a title, so the new window can open it with `opencode -s <id>`.
+export async function createOpencodeSession(directory: string, title: string, serviceFile?: string): Promise<string> {
+  const svc = readService(serviceFile);
+  if (!svc) throw new Error('opencode v2 service not found');
+  return (await api<OcSession>(svc, '/api/session', { title, location: { directory } })).id;
 }

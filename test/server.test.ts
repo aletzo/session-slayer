@@ -80,9 +80,9 @@ it('close: 409 when not idle, kills the pane when idle', async () => {
 });
 
 it('rename', async () => {
-  await req('PUT', '/api/sessions/busy1/name', { name: 'FIRE-1 thing' });
+  await req('PUT', '/api/sessions/busy1/name', { name: 'OPS-1 thing' });
   const b = await (await req('GET', '/api/board')).json();
-  expect(b.cards.find((c: { sessionId: string }) => c.sessionId === 'busy1')).toMatchObject({ name: 'FIRE-1 thing', lane: 'fireline' });
+  expect(b.cards.find((c: { sessionId: string }) => c.sessionId === 'busy1')).toMatchObject({ name: 'OPS-1 thing', lane: 'OPS' });
 });
 
 it('new session: only known repos', async () => {
@@ -107,15 +107,15 @@ it('move: stops the process, then resumes in WezTerm', async () => {
   process.kill = ((pid: number) => (killed.push(pid), true)) as typeof process.kill;
   app.rename('busy1', '');
   const s = app as unknown as { sessions: { sessionId: string; status: string; pid: number }[] };
-  s.sessions.push({ ...s.sessions[1], sessionId: 'warp1', status: 'idle', pid: 300 } as never);
+  s.sessions.push({ ...s.sessions[1], sessionId: 'other1', status: 'idle', pid: 300 } as never);
   calls.length = 0;
   try {
-    await app.moveToWezterm('warp1', async () => {});
+    await app.moveToWezterm('other1', async () => {});
   } finally {
     process.kill = kill;
   }
   expect(killed).toEqual([300]);
-  expect(calls).toContainEqual(['wezterm', 'cli', 'spawn', '--cwd', '/tmp', '--', 'zsh', '-lic', `claude --resume 'warp1'; exec zsh`]);
+  expect(calls).toContainEqual(['wezterm', 'cli', 'spawn', '--cwd', '/tmp', '--', 'zsh', '-lic', `claude --resume 'other1'; exec zsh`]);
 });
 
 it('SessionEnd hides a session only if it started before the end event', async () => {
@@ -125,4 +125,24 @@ it('SessionEnd hides a session only if it started before the end event', async (
   fs.appendFileSync(path.join(dir, 'events.jsonl'), JSON.stringify({ ts: 50, hook: { session_id: 'busy1', hook_event_name: 'SessionEnd' } }) + '\n');
   await app.poll();
   expect(app.board().cards.some((c) => c.sessionId === 'busy1')).toBe(false);
+});
+
+it('new opencode session with a name: creates the titled session, then opens it', async () => {
+  const created: string[][] = [];
+  const oc = new App({
+    run,
+    events: new EventStore(path.join(dir, 'events.jsonl')),
+    names: new Names(path.join(dir, 'names.json')),
+    wezterm: new WezTerm(run, 'wezterm'),
+    home: dir,
+    listSessions: async () => [],
+    createOpencode: async (d, t) => (created.push([d, t]), 'ses_new'),
+  });
+  calls.length = 0;
+  await oc.newSession('repo-a', 'ABC-1 fix', 'opencode');
+  expect(created).toEqual([[path.join(dir, 'dev', 'repo-a'), 'ABC-1 fix']]);
+  expect(calls).toContainEqual(['wezterm', 'cli', 'spawn', '--cwd', path.join(dir, 'dev', 'repo-a'), '--', 'zsh', '-lic', `opencode -s 'ses_new'; exec zsh`]);
+  calls.length = 0;
+  await oc.newSession('repo-a', '', 'opencode');
+  expect(calls).toContainEqual(['wezterm', 'cli', 'spawn', '--cwd', path.join(dir, 'dev', 'repo-a'), '--', 'zsh', '-lic', 'opencode; exec zsh']);
 });

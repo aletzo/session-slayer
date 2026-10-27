@@ -2,12 +2,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { App } from './app';
-import { installHooks } from './installHooks';
+import { installCodexHooks, installHooks } from './installHooks';
 import { Names } from './names';
 import { run } from './run';
 import { createServer } from './server';
+import { listCodexSessions } from './sources/codex';
 import { EventStore } from './sources/hookEvents';
-import { listOpencodeSessions } from './sources/opencode';
+import { createOpencodeSession, listOpencodeSessions } from './sources/opencode';
 import { WezTerm } from './wezterm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -15,13 +16,16 @@ const dataDir = process.env.SESSION_SLAYER_DIR ?? path.join(os.homedir(), '.sess
 const PORT = Number(process.env.PORT ?? 4545);
 
 async function serve(): Promise<void> {
+  const events = new EventStore(path.join(dataDir, 'events.jsonl'));
   const app = new App({
     run,
-    events: new EventStore(path.join(dataDir, 'events.jsonl')),
+    events,
     names: new Names(path.join(dataDir, 'names.json')),
     wezterm: new WezTerm(run),
     listOpencode: () => listOpencodeSessions(run),
     statusDir: path.join(dataDir, 'status'),
+    createOpencode: (dir, title) => createOpencodeSession(dir, title),
+    listCodex: () => listCodexSessions(run, events),
   });
   await app.poll();
   const server = createServer(app, path.join(root, 'dist', 'web'));
@@ -52,6 +56,9 @@ if (cmd === 'serve') {
     path.join(root, 'hooks', 'session-slayer-statusline.sh'),
   );
   console.log(`Hooks added to ${settings} (backup: ${settings}.session-slayer.bak)`);
+  const codexHooks = path.join(os.homedir(), '.codex', 'hooks.json');
+  installCodexHooks(codexHooks, path.join(root, 'hooks', 'session-slayer-hook.sh'));
+  console.log(`Codex hooks added to ${codexHooks}. Codex asks you to review them once on its next start.`);
 } else {
   console.log('Usage: pnpm slayer <serve|install-hooks>');
   process.exit(1);

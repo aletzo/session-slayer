@@ -9,7 +9,7 @@ import { type ClaudeStatus, readClaudeStatus } from './sources/claudeStatus';
 import type { OpencodeResult } from './sources/opencode';
 import { type EventStore, firstPromptFromTranscript } from './sources/hookEvents';
 import type { Board, Column, LiveSession } from './types';
-import { claudeCommand, claudeTitle, opencodeCommand, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
+import { claudeCommand, claudeTitle, codexCommand, opencodeCommand, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
 
 export class HttpError extends Error {
   constructor(
@@ -29,6 +29,8 @@ export type AppDeps = {
   listSessions?: () => Promise<LiveSession[]>;
   listOpencode?: () => Promise<OpencodeResult>;
   statusDir?: string;
+  createOpencode?: (directory: string, title: string) => Promise<string>;
+  listCodex?: () => Promise<LiveSession[]>;
 };
 
 export class App {
@@ -39,6 +41,8 @@ export class App {
   private transcriptPrompts = new Map<string, string | undefined>();
   private sessionsError?: string;
   private opencodeError?: string;
+  private codexError?: string;
+  private pendingNames = new Map<number, string>(); // WezTerm pane id -> name for a Codex session not seen yet
   private opencodeTodayUsd?: number;
   private claudeStatus: ClaudeStatus = { perSession: new Map(), todayUsd: 0 };
   private weztermAvailable = false;
@@ -68,13 +72,22 @@ export class App {
     } catch (e) {
       this.opencodeError = `can't read opencode sessions: ${(e as Error).message}`;
     }
-    this.sessions = [...claude, ...opencode];
+    this.sessions = [...claude, ...opencode, ...this.sessions.filter((s) => s.tool === 'codex')];
     if (this.deps.statusDir) this.claudeStatus = readClaudeStatus(this.deps.statusDir);
     if (!this.compacted && !this.sessionsError) {
       this.deps.events.compact(new Set(this.sessions.map((s) => s.sessionId)));
       this.compacted = true;
     }
     this.deps.events.readNew();
+    if (this.deps.listCodex) {
+      try {
+        const codex = await this.deps.listCodex();
+        this.sessions = [...this.sessions.filter((s) => s.tool !== 'codex'), ...codex];
+        this.codexError = undefined;
+      } catch (e) {
+        this.codexError = `can't read Codex sessions: ${(e as Error).message}`;
+      }
+    }
     await this.matchPanes();
     await this.readBranches();
   }
@@ -95,6 +108,11 @@ export class App {
       const tty = ttys.get(s.pid!);
       const pane = tty && paneForTty(panes, tty);
       if (pane) this.panes.set(s.sessionId, pane);
+      const pending = pane && this.pendingNames.get(pane.pane_id);
+      if (pending) {
+        if (!this.deps.names.all()[s.sessionId]) this.deps.names.set(s.sessionId, pending);
+        this.pendingNames.delete(pane!.pane_id);
+      }
     }
   }
 
@@ -154,7 +172,7 @@ export class App {
         ...c,
         costUsd: c.tool === 'opencode' ? s?.costUsd : st?.costUsd,
         contextPct: st?.contextPct,
-        model: c.tool === 'opencode' ? s?.model : st?.model,
+        model: c.tool === 'claude' ? st?.model : s?.model,
       };
     });
     const usage = {
@@ -163,7 +181,7 @@ export class App {
       claudeTodayUsd: this.deps.statusDir ? this.claudeStatus.todayUsd : undefined,
       opencodeTodayUsd: this.opencodeTodayUsd,
     };
-    const errors = [this.sessionsError, this.opencodeError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];
+    const errors = [this.sessionsError, this.opencodeError, this.codexError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];
     return { cards, usage, errors: errors.filter((e): e is string => !!e), weztermAvailable: this.weztermAvailable };
   }
 
@@ -208,7 +226,8 @@ export class App {
     if (!pid) throw new HttpError(409, 'background sessions cannot be moved');
     process.kill(pid, 'SIGTERM');
     await waitForExit(pid);
-    await this.deps.wezterm.spawn(card.cwd, card.tool === 'opencode' ? opencodeCommand(id) : resumeCommand(id));
+    const cmd = card.tool === 'opencode' ? opencodeCommand(id) : card.tool === 'codex' ? codexCommand(id) : resumeCommand(id);
+    await this.deps.wezterm.spawn(card.cwd, cmd);
   }
 
   rename(id: string, name: string): void {
@@ -227,8 +246,21 @@ export class App {
 
   async newSession(repo: string, name?: string, tool: LiveSession['tool'] = 'claude'): Promise<void> {
     if (!this.repos().includes(repo)) throw new HttpError(400, 'unknown repo');
-    const cmd = tool === 'opencode' ? opencodeCommand() : claudeCommand(name?.trim() || undefined);
-    await this.deps.wezterm.spawn(path.join(this.home, 'dev', repo), cmd);
+    const dir = path.join(this.home, 'dev', repo);
+    const title = name?.trim() || undefined;
+    let cmd = claudeCommand(title);
+    if (tool === 'codex') {
+      // Codex has no name option and its session id is only known later: name the card once it shows up in the new pane
+      const paneId = await this.deps.wezterm.spawn(dir, codexCommand());
+      if (title) this.pendingNames.set(paneId, title);
+      return;
+    }
+    if (tool === 'opencode') {
+      // opencode has no name option: create the titled session through its service, then open it
+      const id = title && this.deps.createOpencode ? await this.deps.createOpencode(dir, title) : undefined;
+      cmd = opencodeCommand(id);
+    }
+    await this.deps.wezterm.spawn(dir, cmd);
   }
 }
 
