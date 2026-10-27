@@ -17,6 +17,17 @@ Click a card to jump to that session's terminal tab. The board also:
 
 It runs only on your machine. The server listens on `127.0.0.1` only.
 
+![The board in dark mode](docs/screenshots/board-dark.png)
+
+<details>
+<summary>More screenshots</summary>
+
+| Light theme | One lane selected | New session |
+|---|---|---|
+| ![Light theme](docs/screenshots/board-light.png) | ![Filtered by the ABC lane](docs/screenshots/filtered.png) | ![New session dialog](docs/screenshots/new-session.png) |
+
+</details>
+
 ## Requirements
 
 - macOS (it uses `ps`, `lsof` and `open -a`)
@@ -90,7 +101,11 @@ pnpm dev        # server with auto-restart + page with hot reload: http://localh
 pnpm test       # unit tests (Vitest)
 pnpm typecheck  # TypeScript
 pnpm build      # build the page into dist/web
+pnpm demo       # the board with made-up sessions (actions turned off): http://127.0.0.1:4545
+pnpm screenshots  # retake docs/screenshots/ from the demo, using your installed Google Chrome
 ```
+
+Demo mode (`src/demo.ts`) reads nothing from your machine and runs no real commands, so it is safe for screenshots.
 
 `pnpm dev` runs the API server on port 4545 and the Vite dev server on port 5173, which passes `/api` calls to the API server. Set `PORT` to change the API port, and `SESSION_SLAYER_DIR` to use another data folder (default `~/.session-slayer`).
 
