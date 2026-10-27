@@ -43,6 +43,12 @@ function age(since: number, now: number): string {
   return `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}`;
 }
 
+// One picture per session count: 00 to 20, then 21_plus.
+function hordeImage(count: number): string {
+  const n = count > 20 ? '21_plus' : String(count).padStart(2, '0');
+  return `/horde/horde_${n}.jpg`;
+}
+
 const TOOL_LABEL = { claude: 'Claude Code', opencode: 'opencode', codex: 'Codex' } as const;
 
 export function App() {
@@ -175,6 +181,8 @@ export function App() {
         ))}
       </div>
       {!cards.length && <p className="empty">{q || filter ? 'No sessions match.' : 'No sessions. Start one with “+ New session”.'}</p>}
+
+      <img className="horde" src={hordeImage(board.cards.length)} alt={`${board.cards.length} sessions`} />
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
     </div>

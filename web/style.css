@@ -478,3 +478,12 @@ h1 {
 .chips.theme {
   flex: none;
 }
+
+.horde {
+  display: block;
+  /* auto top margin pushes it to the bottom of the page when the board is short */
+  margin: auto auto 0;
+  padding-top: 32px;
+  width: min(420px, 100%);
+  height: auto;
+}
