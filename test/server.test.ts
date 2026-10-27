@@ -20,7 +20,7 @@ const run = async (cmd: string, args: string[]) => {
   if (args[1] === 'list') return JSON.stringify([{ pane_id: 5, tty_name: '/dev/ttys001' }]);
   if (cmd === 'ps') return '100 ttys001\n';
   if (args[1] === 'spawn') return '9';
-  if (cmd === 'git') return 'feature-x\n';
+  if (cmd === 'git') return 'feature-x\n/r\n/r/.git\n/r/.git\n';
   return '';
 };
 

@@ -31,6 +31,7 @@ export type Card = {
   lane: string;
   repo?: string;
   branch?: string;
+  worktree?: string;
   ticket?: string;
   tags: string[];
   firstPrompt?: string;

@@ -1,6 +1,18 @@
 import { tagsFor } from './tags';
 import type { Card, Column, LiveSession, SessionEvent } from './types';
 
+export type GitInfo = { branch?: string; worktree?: string };
+
+// Output of `git rev-parse --abbrev-ref HEAD --show-toplevel --git-dir --git-common-dir`, one per line.
+// A linked worktree has its own git dir, different from the common one; its name is its folder name.
+export function parseGitInfo(out: string): GitInfo {
+  const [head, top, gitDir, commonDir] = out.trim().split('\n');
+  return {
+    branch: head && head !== 'HEAD' ? head : undefined,
+    worktree: gitDir && commonDir && gitDir !== commonDir ? top?.split('/').pop() : undefined,
+  };
+}
+
 const ASKING_TOOLS = new Set(['AskUserQuestion', 'ExitPlanMode']);
 
 // The newest relevant event decides the column; null means "no opinion" (idle notifications).
@@ -40,7 +52,7 @@ export type BoardInput = {
   firstPrompt: (id: string) => string | undefined;
   names: Record<string, string>;
   weztermSessions: Set<string>;
-  branches: Map<string, string>; // cwd -> git branch
+  branches: Map<string, GitInfo>; // cwd -> git branch / worktree
   titles: Map<string, string>; // sessionId -> Claude tab title
   since: Map<string, { column: Column; since: number }>;
   now: number;
@@ -77,7 +89,8 @@ export function buildCards(input: BoardInput): Card[] {
       column,
       lane: t.lane,
       repo: t.repo,
-      branch: input.branches.get(s.cwd),
+      branch: input.branches.get(s.cwd)?.branch,
+      worktree: input.branches.get(s.cwd)?.worktree,
       ticket: t.ticket,
       tags: t.tags,
       firstPrompt,

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildCards } from './board';
+import { buildCards, type GitInfo, parseGitInfo } from './board';
 import type { Names } from './names';
 import type { Runner } from './run';
 import { listClaudeSessions } from './sources/claudeAgents';
@@ -30,7 +30,7 @@ export type AppDeps = {
 export class App {
   private sessions: LiveSession[] = [];
   private panes = new Map<string, Pane>(); // sessionId -> WezTerm pane
-  private branches = new Map<string, string>(); // cwd -> git branch
+  private branches = new Map<string, GitInfo>(); // cwd -> git branch / worktree
   private since = new Map<string, { column: Column; since: number }>();
   private transcriptPrompts = new Map<string, string | undefined>();
   private sessionsError?: string;
@@ -82,13 +82,14 @@ export class App {
     const found = await Promise.all(
       cwds.map(async (cwd) => {
         try {
-          return [cwd, (await this.deps.run('git', ['-C', cwd, 'branch', '--show-current'])).trim()] as const;
+          const out = await this.deps.run('git', ['-C', cwd, 'rev-parse', '--path-format=absolute', '--abbrev-ref', 'HEAD', '--show-toplevel', '--git-dir', '--git-common-dir']);
+          return [cwd, parseGitInfo(out)] as const;
         } catch {
-          return [cwd, ''] as const; // not a git repo
+          return [cwd, {}] as const; // not a git repo
         }
       }),
     );
-    this.branches = new Map(found.filter(([, b]) => b));
+    this.branches = new Map(found);
   }
 
   private firstPrompt(id: string): string | undefined {

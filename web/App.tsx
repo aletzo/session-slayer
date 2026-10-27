@@ -49,6 +49,7 @@ export function App() {
   const [lanes, setLanes] = useState<boolean>(() => load('lanes', true));
   const [message, setMessage] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [search, setSearch] = useState('');
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -77,13 +78,16 @@ export function App() {
   if (!board) return <div className="loading">Loading sessions…</div>;
 
   const allTags = sortLanes([...new Set(board.cards.flatMap((c) => c.tags))]);
-  const cards = filter ? board.cards.filter((c) => c.tags.includes(filter)) : board.cards;
+  const q = search.trim().toLowerCase();
+  const cards = board.cards
+    .filter((c) => !filter || c.tags.includes(filter))
+    .filter((c) => !q || [c.name, c.branch, c.ticket].some((s) => s?.toLowerCase().includes(q)));
   const laneNames = lanes ? sortLanes([...new Set(cards.map((c) => c.lane))]) : [''];
 
   return (
     <div className="app">
       <header>
-        <img src="/logo.svg" alt="" className="logo" />
+        <img src="/logo.png" alt="" className="logo" />
         <h1>Session Slayer</h1>
         <button className="primary" disabled={!board.weztermAvailable} onClick={() => setShowNew(true)}>
           + New session
@@ -98,6 +102,13 @@ export function App() {
             </button>
           ))}
         </div>
+        <input
+          className="search"
+          type="search"
+          placeholder="Search sessions…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <button className="chip" onClick={() => setLanes(!lanes)}>
           Lanes: {lanes ? 'on' : 'off'}
         </button>
@@ -133,7 +144,7 @@ export function App() {
           />
         ))}
       </div>
-      {!cards.length && <p className="empty">No sessions. Start one with “+ New session”.</p>}
+      {!cards.length && <p className="empty">{q || filter ? 'No sessions match.' : 'No sessions. Start one with “+ New session”.'}</p>}
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
     </div>
@@ -199,19 +210,38 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
             {card.name}
           </span>
         )}
+        {card.column === 'idle' && (
+          <button
+            className="close"
+            title="Close this session"
+            onClick={(e) => {
+              e.stopPropagation();
+              act(() => api('POST', `/api/sessions/${id}/close`));
+            }}
+          >
+            Close
+          </button>
+        )}
+      </div>
+      <div className="card-bottom">
+        <div className="meta">
+          {card.ticket && <span className="tag ticket">{card.ticket}</span>}
+          {card.repo && showRepo && <span className="tag">{card.repo}</span>}
+          {card.worktree ? (
+            <span className="tag branch" title={`git worktree${card.branch ? ` on branch ${card.branch}` : ''}`}>
+              🌳 {card.worktree}
+            </span>
+          ) : (
+            card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>
+          )}
+          {card.kind === 'background' && <span className="tag bg">background</span>}
+          {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
+        </div>
         <span className="age">{age(card.columnSince, now)}</span>
       </div>
-      <div className="meta">
-        {card.ticket && <span className="tag ticket">{card.ticket}</span>}
-        {card.repo && showRepo && <span className="tag">{card.repo}</span>}
-        {card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>}
-        {card.kind === 'background' && <span className="tag bg">background</span>}
-        {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
-      </div>
-      {card.firstPrompt && card.nameSource !== 'prompt' && <div className="prompt">{card.firstPrompt}</div>}
       {card.column === 'idle' && canFocus && !card.inWezterm && card.kind === 'interactive' && (
         <button
-          className="close move"
+          className="move"
           title="Stops Claude in the other terminal and resumes this session in a new WezTerm tab"
           onClick={(e) => {
             e.stopPropagation();
@@ -219,17 +249,6 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
           }}
         >
           Move to WezTerm
-        </button>
-      )}
-      {card.column === 'idle' && (
-        <button
-          className="close"
-          onClick={(e) => {
-            e.stopPropagation();
-            act(() => api('POST', `/api/sessions/${id}/close`));
-          }}
-        >
-          Close
         </button>
       )}
     </div>

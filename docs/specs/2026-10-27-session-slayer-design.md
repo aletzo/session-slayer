@@ -146,8 +146,7 @@ Lane order: `fireline` first, then repo lanes sorted by name, then `other`.
 ### Card content
 
 - Name (click to edit)
-- Ticket key (if any), repo chip and git branch (`git -C <cwd> branch --show-current`, read on each poll)
-- First prompt, cut to one line
+- Ticket key (if any), repo chip and git worktree name if the session runs in a linked worktree, otherwise the git branch (`git rev-parse`, read on each poll)
 - Time in the current column (for example "4m")
 - "not in WezTerm" badge when no WezTerm pane matches the session
 - **Close** button, on Idle cards only

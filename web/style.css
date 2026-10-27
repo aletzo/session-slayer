@@ -260,8 +260,24 @@ h1 {
 }
 
 .close {
-  margin-top: 8px;
   font-size: 12px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+.card-top {
+  align-items: flex-start;
+}
+
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.card-bottom .age {
+  margin-top: 4px;
 }
 
 .empty,
@@ -315,11 +331,23 @@ h1 {
 }
 
 .move {
-  margin-right: 6px;
+  margin-top: 8px;
+  font-size: 12px;
   border-color: var(--accent);
   color: var(--accent);
 }
 
 .tag.branch {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.search {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--fg);
+  width: 200px;
 }
