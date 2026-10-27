@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "web", "test", "vite.config.ts"]
+  "include": ["src", "web", "test", "scripts", "vite.config.ts"]
 }

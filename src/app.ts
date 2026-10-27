@@ -31,6 +31,7 @@ export type AppDeps = {
   statusDir?: string;
   createOpencode?: (directory: string, title: string) => Promise<string>;
   listCodex?: () => Promise<LiveSession[]>;
+  demo?: boolean; // made-up sessions: actions are turned off
 };
 
 export class App {
@@ -193,6 +194,7 @@ export class App {
   }
 
   async focus(id: string): Promise<{ message?: string }> {
+    this.noDemo();
     const card = this.card(id);
     const pane = this.panes.get(id);
     if (pane) {
@@ -209,6 +211,7 @@ export class App {
   }
 
   async close(id: string): Promise<void> {
+    this.noDemo();
     const card = this.card(id);
     if (card.column !== 'idle') throw new HttpError(409, 'only Idle sessions can be closed');
     const pane = this.panes.get(id);
@@ -220,6 +223,7 @@ export class App {
 
   // Stops an Idle session running outside WezTerm and resumes it in a new WezTerm tab.
   async moveToWezterm(id: string, waitForExit = waitForPidExit): Promise<void> {
+    this.noDemo();
     const card = this.card(id);
     if (card.column !== 'idle') throw new HttpError(409, 'only Idle sessions can be moved');
     if (card.inWezterm) throw new HttpError(409, 'already in WezTerm');
@@ -229,6 +233,10 @@ export class App {
     await waitForExit(pid);
     const cmd = card.tool === 'opencode' ? opencodeCommand(id) : card.tool === 'codex' ? codexCommand(id) : resumeCommand(id);
     await this.deps.wezterm.spawn(card.cwd, cmd);
+  }
+
+  private noDemo(): void {
+    if (this.deps.demo) throw new HttpError(400, 'Demo mode: actions are turned off');
   }
 
   rename(id: string, name: string): void {
@@ -246,6 +254,7 @@ export class App {
   }
 
   async newSession(repo: string, name?: string, tool: LiveSession['tool'] = 'claude'): Promise<void> {
+    this.noDemo();
     if (!this.repos().includes(repo)) throw new HttpError(400, 'unknown repo');
     const dir = path.join(this.home, 'dev', repo);
     const title = name?.trim() || undefined;
