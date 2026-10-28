@@ -24,6 +24,7 @@ export type SessionEvent = {
   toolName?: string;
   prompt?: string;
   notificationKind?: NotificationKind;
+  asks?: boolean; // Stop: the last reply ends with a question
   tool?: 'claude' | 'codex';
   cwd?: string;
   model?: string;

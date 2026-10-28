@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { columnFromEvent } from '../board';
+import { columnFromEvent, endsWithQuestion } from '../board';
 import type { Column, NotificationKind, SessionEvent } from '../types';
 
 // One line as written by hooks/session-slayer-hook.sh: {"ts": <ms>, "tool"?: "codex", "hook": <hook input>}.
@@ -15,6 +15,7 @@ type Line = {
     tool_name?: string;
     prompt?: string;
     notification_type?: string;
+    last_assistant_message?: string;
     message?: string;
   };
 };
@@ -42,6 +43,7 @@ export function parseLine(line: string): SessionEvent | null {
     toolName: h.tool_name,
     prompt: h.prompt,
     notificationKind: h.hook_event_name === 'Notification' ? notificationKind(h) : undefined,
+    asks: h.hook_event_name === 'Stop' && endsWithQuestion(h.last_assistant_message) ? true : undefined,
     tool: l.tool === 'codex' ? 'codex' : 'claude',
     cwd: h.cwd,
     model: h.model,

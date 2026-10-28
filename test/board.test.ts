@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCards, columnFor } from '../src/board';
+import { buildCards, columnFor, endsWithQuestion } from '../src/board';
 import { sortLanes } from '../src/lanes';
 import type { LiveSession, SessionEvent } from '../src/types';
 
@@ -15,6 +15,7 @@ describe('columnFor', () => {
     ['PreToolUse', { toolName: 'ExitPlanMode' }, 'needs_input'],
     ['Notification', { notificationKind: 'permission' }, 'needs_input'],
     ['Stop', {}, 'idle'],
+    ['Stop', { asks: true }, 'needs_input'],
   ] as const)('%s %o -> %s', (event, extra, col) => {
     expect(columnFor(live(), ev(event, extra))).toBe(col);
   });
@@ -78,4 +79,18 @@ it('columnSince prefers the event time, then the source time, then first seen', 
   expect(card({ eventSince: () => ({ column: 'working', since: 5 }) })).toBe(999); // event column disagrees
   expect(buildCards({ ...base, sessions: [live({ columnSince: 7 })], since: new Map() })[0].columnSince).toBe(7);
   expect(card({})).toBe(999);
+});
+
+describe('endsWithQuestion', () => {
+  it.each([
+    ['Shall I commit?', true],
+    ['Done.\n\nOi, **A or B?**', true],
+    ['Which one (A or B?)', true],
+    ['Is it fixed? Yes.\n\nAll done.', false],
+    ['Why? Because.', false],
+    ['', false],
+    [undefined, false],
+  ] as const)('%j -> %s', (text, want) => {
+    expect(endsWithQuestion(text)).toBe(want);
+  });
 });

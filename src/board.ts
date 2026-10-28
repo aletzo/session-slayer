@@ -15,6 +15,13 @@ export function parseGitInfo(out: string): GitInfo {
 
 const ASKING_TOOLS = new Set(['AskUserQuestion', 'ExitPlanMode']);
 
+// True when the last paragraph of a reply ends with a question ("A or B?"), ignoring trailing markdown.
+export function endsWithQuestion(text: string | undefined): boolean {
+  const paragraphs = (text ?? '').trim().split(/\n\s*\n/);
+  const last = paragraphs[paragraphs.length - 1].replace(/[\s*_`)\]"'»]+$/, '');
+  return last.endsWith('?');
+}
+
 // The newest relevant event decides the column; null means "no opinion" (idle notifications).
 export function columnFromEvent(e: SessionEvent): Column | null {
   switch (e.event) {
@@ -28,6 +35,7 @@ export function columnFromEvent(e: SessionEvent): Column | null {
     case 'PermissionRequest': // Codex
       return 'needs_input';
     case 'Stop':
+      return e.asks ? 'needs_input' : 'idle';
     case 'Interrupt': // Codex
       return 'idle';
     default:
