@@ -1,5 +1,5 @@
 :root {
-  --bg: #f5f5f6;
+  --bg: #fefbf6; /* top row of horde_light images */
   --panel: #ffffff;
   --fg: #252527;
   --muted: #5a5a60;
@@ -16,7 +16,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #161617;
+    --bg: #1d1e2b; /* top row of horde images */
     --panel: #232325;
     --fg: #ececee;
     --muted: #a0a0a8;
@@ -26,7 +26,7 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #161617;
+  --bg: #1d1e2b; /* top row of horde images */
   --panel: #232325;
   --fg: #ececee;
   --muted: #a0a0a8;
