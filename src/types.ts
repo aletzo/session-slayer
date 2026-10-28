@@ -60,6 +60,8 @@ export type Board = {
     claude5h?: { pct: number; resetsAt: number };
     claude7d?: { pct: number; resetsAt: number };
     claudeTodayUsd?: number;
+    codex5h?: { pct: number; resetsAt: number };
+    codex7d?: { pct: number; resetsAt: number };
     opencodeTodayUsd?: number;
   };
 };

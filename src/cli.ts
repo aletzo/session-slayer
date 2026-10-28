@@ -27,6 +27,7 @@ async function serve(demo = false): Promise<void> {
     statusDir: path.join(dataDir, 'status'),
     createOpencode: (dir, title) => createOpencodeSession(dir, title),
     listCodex: () => listCodexSessions(run, events),
+    codexDir: path.join(os.homedir(), '.codex'),
   });
   await app.poll();
   const server = createServer(app, path.join(root, 'dist', 'web'));

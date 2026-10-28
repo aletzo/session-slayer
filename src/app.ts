@@ -6,6 +6,7 @@ import type { Names } from './names';
 import type { Runner } from './run';
 import { listClaudeSessions } from './sources/claudeAgents';
 import { type ClaudeStatus, readClaudeStatus } from './sources/claudeStatus';
+import { type CodexLimits, readCodexLimits } from './sources/codexStatus';
 import type { OpencodeResult } from './sources/opencode';
 import { type EventStore, firstPromptFromTranscript } from './sources/hookEvents';
 import type { Board, Column, LiveSession } from './types';
@@ -31,6 +32,7 @@ export type AppDeps = {
   statusDir?: string;
   createOpencode?: (directory: string, title: string) => Promise<string>;
   listCodex?: () => Promise<LiveSession[]>;
+  codexDir?: string; // ~/.codex, for Codex plan limits
   demo?: boolean; // made-up sessions: actions are turned off
 };
 
@@ -43,6 +45,7 @@ export class App {
   private sessionsError?: string;
   private opencodeError?: string;
   private codexError?: string;
+  private codexLimits?: CodexLimits;
   private pendingNames = new Map<number, string>(); // WezTerm pane id -> name for a Codex session not seen yet
   private opencodeTodayUsd?: number;
   private claudeStatus: ClaudeStatus = { perSession: new Map(), todayUsd: 0 };
@@ -75,6 +78,13 @@ export class App {
     }
     this.sessions = [...claude, ...opencode, ...this.sessions.filter((s) => s.tool === 'codex')];
     if (this.deps.statusDir) this.claudeStatus = readClaudeStatus(this.deps.statusDir);
+    if (this.deps.codexDir) {
+      try {
+        this.codexLimits = readCodexLimits(this.deps.codexDir);
+      } catch {
+        this.codexLimits = undefined; // Codex not installed or files unreadable
+      }
+    }
     if (!this.compacted && !this.sessionsError) {
       this.deps.events.compact(new Set(this.sessions.map((s) => s.sessionId)));
       this.compacted = true;
@@ -181,6 +191,8 @@ export class App {
       claude5h: this.claudeStatus.fiveHour,
       claude7d: this.claudeStatus.sevenDay,
       claudeTodayUsd: this.deps.statusDir ? this.claudeStatus.todayUsd : undefined,
+      codex5h: this.codexLimits?.fiveHour,
+      codex7d: this.codexLimits?.week,
       opencodeTodayUsd: this.opencodeTodayUsd,
     };
     const errors = [this.sessionsError, this.opencodeError, this.codexError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];

@@ -141,6 +141,24 @@ export function createDemoApp(now = Date.now()): App {
         ...(tool === 'codex' ? { model: d.model } : {}),
       }));
 
+  // Codex plan limits, as Codex writes them into its session files.
+  const day = new Date(now);
+  const codexDay = path.join(home, '.codex', 'sessions', String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
+  fs.mkdirSync(codexDay, { recursive: true });
+  fs.writeFileSync(
+    path.join(codexDay, 'rollout-demo.jsonl'),
+    JSON.stringify({
+      type: 'event_msg',
+      payload: {
+        type: 'token_count',
+        rate_limits: {
+          primary: { used_percent: 41, window_minutes: 300, resets_at: Math.floor((now + 95 * MIN) / 1000) },
+          secondary: { used_percent: 87, window_minutes: 10080, resets_at: Math.floor((now + 2 * 24 * 60 * MIN) / 1000) },
+        },
+      },
+    }) + '\n',
+  );
+
   return new App({
     run,
     events: new EventStore(path.join(data, 'events.jsonl')),
@@ -148,6 +166,7 @@ export function createDemoApp(now = Date.now()): App {
     wezterm: new WezTerm(run, 'wezterm'),
     home,
     statusDir,
+    codexDir: path.join(home, '.codex'),
     listSessions: async () => live('claude'),
     listOpencode: async () => ({ sessions: live('opencode'), todayUsd: 0.37 }),
     listCodex: async () => live('codex'),

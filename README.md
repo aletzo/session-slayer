@@ -76,7 +76,7 @@ To undo the changes, restore the `.session-slayer.bak` files.
 | Model | status line | session | hook events |
 | Cost ($) | status line (estimate at list price) | session | — |
 | Context % | status line | — | — |
-| 5-hour / weekly plan % | status line (Pro and Max plans only) | — | — |
+| 5-hour / weekly plan % | status line (Pro and Max plans only) | — | its session files (`~/.codex/sessions`, ChatGPT plans) |
 
 ## Using it
 

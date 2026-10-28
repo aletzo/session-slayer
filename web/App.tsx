@@ -212,7 +212,7 @@ function Meter({ label, limit }: { label: string; limit: { pct: number; resetsAt
 }
 
 function UsageBar({ usage }: { usage: Board['usage'] }) {
-  if (!usage.claude5h && !usage.claude7d && usage.claudeTodayUsd === undefined && usage.opencodeTodayUsd === undefined) return null;
+  if (!Object.values(usage).some((v) => v !== undefined)) return null;
   return (
     <div className="usage-bar">
       {usage.claude5h && <Meter label="Claude 5h" limit={usage.claude5h} />}
@@ -222,6 +222,8 @@ function UsageBar({ usage }: { usage: Board['usage'] }) {
           Claude today <strong>{money(usage.claudeTodayUsd)}</strong>
         </span>
       )}
+      {usage.codex5h && <Meter label="Codex 5h" limit={usage.codex5h} />}
+      {usage.codex7d && <Meter label="Codex week" limit={usage.codex7d} />}
       {usage.opencodeTodayUsd !== undefined && (
         <span className="meter">
           opencode today <strong>{money(usage.opencodeTodayUsd)}</strong>
