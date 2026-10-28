@@ -41,6 +41,7 @@
 body {
   margin: 0;
   background: var(--bg);
+  overflow-x: clip; /* the full-width horde band must not add a side scroll */
 }
 
 button {
@@ -479,11 +480,54 @@ h1 {
   flex: none;
 }
 
+.horde-band {
+  /* auto top margin pushes it to the bottom of the page when the board is short */
+  margin-top: auto;
+  padding-top: 32px;
+  /* full page width, so the floor glow runs past the picture's sides */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  /* the colours down the picture's left and right edges (horde_00), so the band and picture meet without a seam */
+  background: linear-gradient(
+      var(--bg) 60%,
+      #1e1e33 65%,
+      #222040 70%,
+      #2a2458 75%,
+      #2e3372 80%,
+      #222647 85%,
+      #1f2036 90%,
+      #1d1d2c 95%,
+      #1d1d2b 100%
+    )
+    bottom / 100% calc(100% - 32px) no-repeat;
+}
+
 .horde {
   display: block;
-  /* auto top margin pushes it to the bottom of the page when the board is short */
-  margin: auto auto 0;
-  padding-top: 32px;
+  margin: 0 auto;
   width: min(420px, 100%);
   height: auto;
+  /* fade the left, right and bottom edges into the band: floors sit at slightly different heights per picture */
+  --fade: linear-gradient(to right, transparent, #000 var(--fade-size), #000 calc(100% - var(--fade-size)), transparent),
+    linear-gradient(#000 calc(100% - var(--fade-size)), transparent);
+  --fade-size: 15%;
+  -webkit-mask-image: var(--fade);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--fade);
+  mask-composite: intersect;
+}
+
+:root[data-theme="light"] .horde {
+  --fade-size: 10%; /* the light floor is pale, so a wide fade shows */
+}
+:root[data-theme="light"] .horde-band {
+  background-image: linear-gradient(var(--bg) 60%, #fcf8f7 65%, #f6f3fa 70%, #ebebfc 75%, #dee3fd 80%, #dee2fd 85%, #ebeafb 90%, #f2f1f9 95%, #f7f5f8 100%);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .horde {
+    --fade-size: 10%;
+  }
+  :root:not([data-theme="dark"]) .horde-band {
+    background-image: linear-gradient(var(--bg) 60%, #fcf8f7 65%, #f6f3fa 70%, #ebebfc 75%, #dee3fd 80%, #dee2fd 85%, #ebeafb 90%, #f2f1f9 95%, #f7f5f8 100%);
+  }
 }

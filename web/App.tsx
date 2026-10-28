@@ -215,7 +215,9 @@ export function App() {
       </div>
       {!cards.length && <p className="empty">{q || filter ? 'No sessions match.' : 'No sessions. Start one with “+ New session”.'}</p>}
 
-      <img className="horde" src={hordeImage(board.cards.length, light)} alt={`${board.cards.length} sessions`} />
+      <div className="horde-band">
+        <img className="horde" src={hordeImage(board.cards.length, light)} alt={`${board.cards.length} sessions`} />
+      </div>
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
     </div>
