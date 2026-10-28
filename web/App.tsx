@@ -310,7 +310,7 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
             {card.name}
           </span>
         )}
-        {card.column === 'idle' && (
+        {card.column !== 'working' && (
           <button
             className="close"
             title="Close this session"

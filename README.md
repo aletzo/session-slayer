@@ -82,7 +82,7 @@ To undo the changes, restore the `.session-slayer.bak` files.
 
 - **Click a card** to jump to its WezTerm tab.
 - **Click a card's name** to rename it. A ticket key in the name (e.g. `ABC-123 fix login`) moves the card to the `ABC` lane.
-- **Close** (Idle cards only) closes the WezTerm pane, which ends the session.
+- **Close** (Idle and Needs input cards) closes the WezTerm pane, which ends the session.
 - **Move to WezTerm** (Idle cards outside WezTerm) stops the session and reopens it in a new WezTerm tab with the same conversation.
 - **+ New session**: pick a repo from `~/dev`, a tool, and an optional name.
 - **Theme**: light, dark, or system.

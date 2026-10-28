@@ -225,7 +225,7 @@ export class App {
   async close(id: string): Promise<void> {
     this.noDemo();
     const card = this.card(id);
-    if (card.column !== 'idle') throw new HttpError(409, 'only Idle sessions can be closed');
+    if (card.column === 'working') throw new HttpError(409, 'Working sessions cannot be closed');
     const pane = this.panes.get(id);
     if (pane) return this.deps.wezterm.kill(pane.pane_id);
     const pid = this.sessions.find((s) => s.sessionId === id)?.pid;
