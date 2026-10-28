@@ -75,6 +75,11 @@ export function createServer(app: App, staticDir?: string): http.Server & { broa
     }
   }) as http.Server & { broadcast: () => void };
 
+  // Keeps idle streams alive, so pages can tell a dead stream (server restart) from a quiet one.
+  setInterval(() => {
+    for (const c of clients) c.write('event: ping\ndata: \n\n');
+  }, 10_000).unref();
+
   // Sends the board to all pages, only when it changed.
   server.broadcast = () => {
     const json = JSON.stringify(app.board());

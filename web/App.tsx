@@ -72,12 +72,30 @@ export function App() {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const es = new EventSource('/api/stream');
-    es.onmessage = (e) => setBoard(JSON.parse(e.data));
-    es.onerror = () => setBoard((b) => (b ? { ...b, errors: ['lost connection to Session Slayer'] } : b));
+    // The server pings every 10 s; with no message for 25 s the stream is dead (e.g. the server restarted
+    // behind the Vite proxy, which keeps the page's connection open), so open a new one.
+    let es: EventSource;
+    let heard = Date.now();
+    const connect = () => {
+      es = new EventSource('/api/stream');
+      es.onmessage = (e) => {
+        heard = Date.now();
+        setBoard(JSON.parse(e.data));
+      };
+      es.addEventListener('ping', () => (heard = Date.now()));
+      es.onerror = () => setBoard((b) => (b ? { ...b, errors: ['lost connection to Session Slayer'] } : b));
+    };
+    connect();
+    const watchdog = setInterval(() => {
+      if (Date.now() - heard < 25_000) return;
+      heard = Date.now();
+      es.close();
+      connect();
+    }, 5_000);
     const t = setInterval(() => setNow(Date.now()), 10_000);
     return () => {
       es.close();
+      clearInterval(watchdog);
       clearInterval(t);
     };
   }, []);
