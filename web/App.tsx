@@ -44,9 +44,22 @@ function age(since: number, now: number): string {
 }
 
 // One picture per session count: 00 to 20, then 21_plus.
-function hordeImage(count: number): string {
+// Light theme uses the horde_light set.
+function hordeImage(count: number, light: boolean): string {
   const n = count > 20 ? '21_plus' : String(count).padStart(2, '0');
-  return `/horde/horde_${n}.jpg`;
+  return light ? `/horde_light/horde_${n}.jpg` : `/horde/horde_${n}.jpg`;
+}
+
+// Follows the system theme while the page is open.
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+function useSystemDark(): boolean {
+  const [dark, setDark] = useState(darkQuery.matches);
+  useEffect(() => {
+    const on = (e: MediaQueryListEvent) => setDark(e.matches);
+    darkQuery.addEventListener('change', on);
+    return () => darkQuery.removeEventListener('change', on);
+  }, []);
+  return dark;
 }
 
 const TOOL_LABEL = { claude: 'Claude Code', opencode: 'opencode', codex: 'Codex' } as const;
@@ -64,6 +77,8 @@ export function App() {
   useEffect(() => {
     save('toolFilter', toolFilter);
   }, [toolFilter]);
+  const systemDark = useSystemDark();
+  const light = theme === 'light' || (theme === 'system' && !systemDark);
   useEffect(() => {
     save('theme', theme);
     if (theme === 'system') document.documentElement.removeAttribute('data-theme');
@@ -200,7 +215,7 @@ export function App() {
       </div>
       {!cards.length && <p className="empty">{q || filter ? 'No sessions match.' : 'No sessions. Start one with “+ New session”.'}</p>}
 
-      <img className="horde" src={hordeImage(board.cards.length)} alt={`${board.cards.length} sessions`} />
+      <img className="horde" src={hordeImage(board.cards.length, light)} alt={`${board.cards.length} sessions`} />
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
     </div>
