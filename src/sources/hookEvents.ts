@@ -73,7 +73,8 @@ export class EventStore {
       .split('\n')
       .filter((line) => {
         const e = parseLine(line);
-        return e && (liveIds.has(e.sessionId) || (e.tool === 'codex' && now - e.ts < 7 * 24 * 3600_000));
+        // recent lines stay too: Codex and some Claude sessions are found only through them
+        return e && (liveIds.has(e.sessionId) || now - e.ts < 7 * 24 * 3600_000);
       });
     fs.writeFileSync(this.file, kept.length ? kept.join('\n') + '\n' : '');
     this.offset = 0;

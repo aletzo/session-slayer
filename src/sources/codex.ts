@@ -18,6 +18,24 @@ export function pickCodexSessions(windows: OcWindow[], sessions: HookSession[]):
   return out;
 }
 
+// Claude sessions started with a prompt argument (`claude '<prompt>'`) are missing from
+// `claude agents`; find them like Codex: running `claude` windows plus hook events.
+export async function listUnlistedClaude(run: Runner, events: EventStore, listed: LiveSession[]): Promise<LiveSession[]> {
+  const pids = new Set(listed.map((s) => s.pid));
+  const ids = new Set(listed.map((s) => s.sessionId));
+  const windows = (await listWindows(run, 'claude', /^\s*(agents|mcp|doctor|update)\b/)).filter((w) => !pids.has(w.pid));
+  if (!windows.length) return [];
+  const sessions = events.hookSessions('claude').filter((s) => !ids.has(s.sessionId));
+  return pickCodexSessions(windows, sessions).map(({ window, session }) => ({
+    tool: 'claude',
+    sessionId: session.sessionId,
+    pid: window.pid,
+    cwd: window.cwd,
+    kind: 'interactive',
+    startedAt: session.startedAt,
+  }));
+}
+
 export async function listCodexSessions(run: Runner, events: EventStore): Promise<LiveSession[]> {
   const windows = await listWindows(run, 'codex', /\b(app-server|mcp-server|mcp)\b/);
   return pickCodexSessions(windows, events.hookSessions('codex')).map(({ window, session }) => ({

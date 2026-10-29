@@ -5,7 +5,7 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 import { columnFor } from '../src/board';
 import { addCodexHooks, CODEX_HOOK_EVENTS } from '../src/installHooks';
-import { pickCodexSessions } from '../src/sources/codex';
+import { listUnlistedClaude, pickCodexSessions } from '../src/sources/codex';
 import { EventStore } from '../src/sources/hookEvents';
 import { codexCommand } from '../src/wezterm';
 
@@ -64,4 +64,19 @@ it('addCodexHooks: all events once, keeps other hooks', () => {
 it('codexCommand', () => {
   expect(codexCommand()).toBe('codex; exec zsh');
   expect(codexCommand('abc')).toBe("codex resume 'abc'; exec zsh");
+});
+
+it('finds Claude windows missing from `claude agents` through hook events', async () => {
+  const dir = tmp();
+  const file = path.join(dir, 'events.jsonl');
+  const line = (ts: number, id: string, cwd: string) => JSON.stringify({ ts, hook: { session_id: id, cwd, hook_event_name: 'UserPromptSubmit', prompt: 'go' } });
+  fs.writeFileSync(file, [line(1, 'listed', '/a'), line(2, 'old', '/b'), line(3, 'new', '/b')].join('\n') + '\n');
+  const events = new EventStore(file);
+  events.readNew();
+  const run = async (cmd: string) =>
+    cmd === 'ps'
+      ? ' 10 /bin/claude\n 20 claude /lm-move x\n 30 claude agents --json\n 40 zsh -lic claude'
+      : 'p10\nn/a\np20\nn/b\np30\nn/c';
+  const found = await listUnlistedClaude(run, events, [{ tool: 'claude', sessionId: 'listed', pid: 10, cwd: '/a', kind: 'interactive' }]);
+  expect(found.map((s) => [s.pid, s.sessionId])).toEqual([[20, 'new']]);
 });

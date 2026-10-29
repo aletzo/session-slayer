@@ -6,6 +6,7 @@ import type { Names } from './names';
 import type { Runner } from './run';
 import { listClaudeSessions } from './sources/claudeAgents';
 import { type ClaudeStatus, readClaudeStatus } from './sources/claudeStatus';
+import { listUnlistedClaude } from './sources/codex';
 import { type CodexLimits, readCodexLimits } from './sources/codexStatus';
 import type { OpencodeResult } from './sources/opencode';
 import { type EventStore, firstPromptFromTranscript } from './sources/hookEvents';
@@ -90,6 +91,13 @@ export class App {
       this.compacted = true;
     }
     this.deps.events.readNew();
+    if (!this.deps.listSessions && !this.sessionsError) {
+      try {
+        this.sessions.push(...(await listUnlistedClaude(this.deps.run, this.deps.events, claude)));
+      } catch {
+        // ps/lsof failed: show the listed sessions only
+      }
+    }
     if (this.deps.listCodex) {
       try {
         const codex = await this.deps.listCodex();
