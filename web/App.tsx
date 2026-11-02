@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { sortLanes } from '../src/lanes';
 import type { Board, Card, Column } from '../src/types';
 
@@ -115,6 +115,19 @@ export function App() {
     };
   }, []);
 
+  // "/" focuses the search box, unless you are already typing somewhere
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || t.closest('input, textarea, select, [contenteditable]')) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   useEffect(() => save('filter', filter), [filter]);
   useEffect(() => save('lanes', lanes), [lanes]);
 
@@ -163,9 +176,10 @@ export function App() {
           ))}
         </div>
         <input
+          ref={searchRef}
           className="search"
           type="search"
-          placeholder="Search sessions…"
+          placeholder="Search sessions… ( / )"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

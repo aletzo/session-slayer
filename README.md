@@ -85,6 +85,7 @@ To undo the changes, restore the `.session-slayer.bak` files.
 - **Close** (Idle and Needs input cards) closes the WezTerm pane, which ends the session.
 - **Move to WezTerm** (Idle cards outside WezTerm) stops the session and reopens it in a new WezTerm tab with the same conversation.
 - **+ New session**: pick a repo from `~/dev`, a tool, and an optional name.
+- **Press `/`** to jump to the search box.
 - **Theme**: light, dark, or system.
 - **The horde** under the board grows with your session count (0 to 20, then 21+).
 
