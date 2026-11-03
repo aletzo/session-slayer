@@ -51,13 +51,22 @@ function hordeImage(count: number, light: boolean): string {
 }
 
 // Follows the system theme while the page is open.
+// A background tab can sleep through the 'change' event (the CSS still switches), so check again when the tab wakes.
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function useSystemDark(): boolean {
   const [dark, setDark] = useState(darkQuery.matches);
   useEffect(() => {
-    const on = (e: MediaQueryListEvent) => setDark(e.matches);
-    darkQuery.addEventListener('change', on);
-    return () => darkQuery.removeEventListener('change', on);
+    const sync = () => setDark(darkQuery.matches);
+    darkQuery.addEventListener('change', sync);
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('focus', sync);
+    window.addEventListener('pageshow', sync);
+    return () => {
+      darkQuery.removeEventListener('change', sync);
+      document.removeEventListener('visibilitychange', sync);
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('pageshow', sync);
+    };
   }, []);
   return dark;
 }
