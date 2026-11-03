@@ -9,7 +9,7 @@ import { type ClaudeStatus, readClaudeStatus } from './sources/claudeStatus';
 import { listUnlistedClaude } from './sources/codex';
 import { type CodexLimits, readCodexLimits } from './sources/codexStatus';
 import type { OpencodeResult } from './sources/opencode';
-import { type EventStore, firstPromptFromTranscript } from './sources/hookEvents';
+import { type EventStore, firstPromptFromTranscript, recapFromTranscript } from './sources/hookEvents';
 import type { Board, Column, LiveSession } from './types';
 import { claudeCommand, claudeTitle, codexCommand, opencodeCommand, resumeCommand, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
 
@@ -148,6 +148,10 @@ export class App {
       }),
     );
     this.branches = new Map(found);
+  }
+
+  recap(id: string): { text: string; ts: number } | null {
+    return recapFromTranscript(path.join(this.home, '.claude'), id) ?? null;
   }
 
   private firstPrompt(id: string): string | undefined {

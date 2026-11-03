@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { EventStore, parseLine } from '../src/sources/hookEvents';
+import { EventStore, parseLine, recapFromTranscript } from '../src/sources/hookEvents';
 
 const line = (hook: object, ts = 1) => JSON.stringify({ ts, hook }) + '\n';
 const tmp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'slayer-')), 'events.jsonl');
@@ -77,4 +77,18 @@ it('columnSince: start of the current column streak, kept across restarts', () =
   fs.appendFileSync(f, line({ session_id: 'a', hook_event_name: 'UserPromptSubmit' }, 50) + line({ session_id: 'a', hook_event_name: 'PostToolUse' }, 60));
   s.readNew();
   expect(s.columnSince('a')).toEqual({ column: 'working', since: 50 });
+});
+
+describe('recapFromTranscript', () => {
+  it('returns the latest away_summary without the config hint', () => {
+    const claude = fs.mkdtempSync(path.join(os.tmpdir(), 'recap-'));
+    fs.mkdirSync(path.join(claude, 'projects', 'p'), { recursive: true });
+    const line = (content: string, ts: string) => JSON.stringify({ type: 'system', subtype: 'away_summary', content, timestamp: ts });
+    fs.writeFileSync(
+      path.join(claude, 'projects', 'p', 's1.jsonl'),
+      [line('old', '2026-11-03T08:00:00Z'), JSON.stringify({ type: 'user', message: { content: 'hi' } }), line('new one (disable recaps in /config)', '2026-11-03T09:00:00Z'), '{"partial'].join('\n'),
+    );
+    expect(recapFromTranscript(claude, 's1')).toEqual({ text: 'new one', ts: Date.parse('2026-11-03T09:00:00Z') });
+    expect(recapFromTranscript(claude, 'missing')).toBeUndefined();
+  });
 });

@@ -531,3 +531,28 @@ h1 {
     background-image: linear-gradient(var(--bg) 60%, #fcf8f7 65%, #f6f3fa 70%, #ebebfc 75%, #dee3fd 80%, #dee2fd 85%, #ebeafb 90%, #f2f1f9 95%, #f7f5f8 100%);
   }
 }
+
+.info {
+  font-size: 14px;
+  padding: 0 6px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.info:hover {
+  color: inherit;
+}
+
+.recap {
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  cursor: auto;
+}
+
+.spacer {
+  flex: 1;
+}

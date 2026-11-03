@@ -165,3 +165,25 @@ export function firstPromptFromTranscript(claudeDir: string, sessionId: string):
   }
   return undefined;
 }
+
+// Latest recap Claude Code wrote into the transcript (system/away_summary line), without the "(disable recaps…)" tail.
+export function recapFromTranscript(claudeDir: string, sessionId: string): { text: string; ts: number } | undefined {
+  const projects = path.join(claudeDir, 'projects');
+  if (!fs.existsSync(projects)) return undefined;
+  for (const dir of fs.readdirSync(projects)) {
+    const file = path.join(projects, dir, `${sessionId}.jsonl`);
+    if (!fs.existsSync(file)) continue;
+    const lines = fs.readFileSync(file, 'utf8').split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].includes('"away_summary"')) continue;
+      try {
+        const l = JSON.parse(lines[i]);
+        if (l.type !== 'system' || l.subtype !== 'away_summary' || typeof l.content !== 'string') continue;
+        return { text: l.content.replace(/\s*\(disable recaps in \/config\)\s*$/, ''), ts: Date.parse(l.timestamp) };
+      } catch {
+        // partial line
+      }
+    }
+  }
+  return undefined;
+}

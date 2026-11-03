@@ -32,7 +32,7 @@ export function createServer(app: App, staticDir?: string): http.Server & { broa
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const p = url.pathname;
-    const m = p.match(/^\/api\/sessions\/([^/]+)\/(focus|close|move|name)$/);
+    const m = p.match(/^\/api\/sessions\/([^/]+)\/(focus|close|move|name|recap)$/);
     try {
       if (req.method === 'GET' && p === '/api/board') return send(res, 200, app.board());
       if (req.method === 'GET' && p === '/api/repos') return send(res, 200, app.repos());
@@ -48,6 +48,7 @@ export function createServer(app: App, staticDir?: string): http.Server & { broa
         await app.newSession(b.repo, b.name, b.tool === 'opencode' || b.tool === 'codex' ? b.tool : 'claude');
         return send(res, 200, {});
       }
+      if (m && req.method === 'GET' && m[2] === 'recap') return send(res, 200, app.recap(m[1]));
       if (m && req.method === 'POST' && m[2] === 'focus') return send(res, 200, await app.focus(m[1]));
       if (m && req.method === 'POST' && m[2] === 'close') {
         await app.close(m[1]);

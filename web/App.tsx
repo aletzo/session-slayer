@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { type MouseEvent, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { sortLanes } from '../src/lanes';
 import type { Board, Card, Column } from '../src/types';
 
@@ -314,7 +315,16 @@ function Lane(props: { lane: string; showTitle: boolean; cards: Card[]; now: num
 function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showRepo: boolean; now: number; act: Act; canFocus: boolean }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(card.name);
+  const [recap, setRecap] = useState<{ text: string; ts: number } | null | undefined>(undefined);
   const id = encodeURIComponent(card.sessionId);
+
+  const showRecap = (e: MouseEvent) => {
+    e.stopPropagation();
+    fetch(`/api/sessions/${id}/recap`)
+      .then((r) => r.json())
+      .then(setRecap)
+      .catch(() => setRecap(null));
+  };
 
   const saveName = () => {
     setEditing(false);
@@ -350,6 +360,12 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
             {card.name}
           </span>
         )}
+        {card.tool === 'claude' && (
+          <button className="info" title="Recap" aria-label="Recap" onClick={showRecap}>
+            ⓘ
+          </button>
+        )}
+        <span className="spacer" />
         {card.column !== 'working' && (
           <button
             className="close"
@@ -396,6 +412,26 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
           Move to WezTerm
         </button>
       )}
+      {recap !== undefined &&
+        createPortal(
+        <div
+          className="overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            setRecap(undefined);
+          }}
+        >
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <h2>{card.name}</h2>
+            <p className="recap">{recap ? recap.text : 'No recap yet.'}</p>
+            {recap && <span className="age">{age(recap.ts, now) === 'now' ? 'just now' : `${age(recap.ts, now)} ago`}</span>}
+            <div className="actions">
+              <button onClick={() => setRecap(undefined)}>Close</button>
+            </div>
+          </div>
+        </div>,
+          document.body,
+        )}
     </div>
   );
 }
