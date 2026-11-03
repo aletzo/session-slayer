@@ -168,23 +168,29 @@ export function App() {
         <button className="primary" disabled={!board.weztermAvailable} onClick={() => setShowNew(true)}>
           + New session
         </button>
-        <div className="chips">
-          <button className={!filter ? 'chip on' : 'chip'} onClick={() => setFilter(null)}>
-            all
+        <div className="lane-filter">
+          <button className={lanes ? 'toggle on' : 'toggle'} title="Group cards by lane" onClick={() => setLanes(!lanes)}>
+            Lanes
           </button>
-          {allTags.map((t) => (
-            <button key={t} className={filter === t ? 'chip on' : 'chip'} onClick={() => setFilter(t)}>
-              {t}
+          <div className="group">
+            <button className={!filter ? 'on' : ''} onClick={() => setFilter(null)}>
+              all
             </button>
-          ))}
+            {allTags.map((t) => (
+              <button key={t} className={filter === t ? 'on' : ''} onClick={() => setFilter(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="chips tools">
+        <div className="group">
           {([null, 'claude', 'opencode', 'codex'] as const).map((t) => (
-            <button key={t ?? 'all'} className={toolFilter === t ? 'chip on' : 'chip'} onClick={() => setToolFilter(t)}>
+            <button key={t ?? 'all'} className={toolFilter === t ? 'on' : ''} onClick={() => setToolFilter(t)}>
               {t ? TOOL_LABEL[t] : 'all tools'}
             </button>
           ))}
         </div>
+        <span className="spacer" />
         <input
           ref={searchRef}
           className="search"
@@ -193,16 +199,6 @@ export function App() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="chips theme" title="Theme">
-          {(['light', 'dark', 'system'] as const).map((t) => (
-            <button key={t} className={theme === t ? 'chip on' : 'chip'} onClick={() => setTheme(t)}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <button className="chip" onClick={() => setLanes(!lanes)}>
-          Lanes: {lanes ? 'on' : 'off'}
-        </button>
       </header>
 
       <UsageBar usage={board.usage} />
@@ -241,6 +237,13 @@ export function App() {
 
       <div className="horde-band">
         <img className="horde" src={hordeImage(board.cards.length, light)} alt={`${board.cards.length} sessions`} />
+        <div className="group theme-switch" title="Theme">
+          {(['light', 'dark', 'system'] as const).map((t) => (
+            <button key={t} className={theme === t ? 'on' : ''} onClick={() => setTheme(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
@@ -381,19 +384,23 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
       </div>
       <div className="card-bottom">
         <div className="meta">
-          {card.ticket && <span className="tag ticket">{card.ticket}</span>}
-          {card.repo && showRepo && <span className="tag">{card.repo}</span>}
-          {card.worktree ? (
-            <span className="tag branch" title={`git worktree${card.branch ? ` on branch ${card.branch}` : ''}`}>
-              🌳 {card.worktree}
-            </span>
-          ) : (
-            card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>
-          )}
-          <span className={`tag ${card.tool}`}>{TOOL_LABEL[card.tool]}</span>
-          {card.model && <span className="tag model" title="model">{card.model}</span>}
-          {card.kind === 'background' && <span className="tag bg">background</span>}
-          {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
+          <div className="tags">
+            {card.ticket && <span className="tag ticket">{card.ticket}</span>}
+            {card.repo && showRepo && <span className="tag">{card.repo}</span>}
+            {card.worktree ? (
+              <span className="tag branch" title={`git worktree${card.branch ? ` on branch ${card.branch}` : ''}`}>
+                🌳 {card.worktree}
+              </span>
+            ) : (
+              card.branch && <span className="tag branch" title="git branch">⎇ {card.branch}</span>
+            )}
+          </div>
+          <div className="tags">
+            <span className={`tag ${card.tool}`}>{TOOL_LABEL[card.tool]}</span>
+            {card.model && <span className="tag model" title="model">{card.model}</span>}
+            {card.kind === 'background' && <span className="tag bg">background</span>}
+            {!card.inWezterm && card.kind === 'interactive' && <span className="tag warn">not in WezTerm</span>}
+          </div>
         </div>
         <span className="age">
           {usageText(card) && <span className="usage">{usageText(card)} · </span>}
