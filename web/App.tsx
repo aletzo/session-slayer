@@ -1,6 +1,7 @@
-import { type MouseEvent, useEffect, useRef, useState } from 'react';
+import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sortLanes } from '../src/lanes';
+import type { Spend } from '../src/spend';
 import type { Board, Card, Column } from '../src/types';
 
 const COLUMNS: { key: Column; title: string }[] = [
@@ -273,23 +274,46 @@ function Meter({ label, limit }: { label: string; limit: { pct: number; resetsAt
   );
 }
 
+function SpendMeter({ spend, title }: { spend: Spend; title?: string }) {
+  return (
+    <span className="meter" title={title}>
+      today <strong>{money(spend.today)}</strong> <span className="muted">· week</span> <strong>{money(spend.week)}</strong>{' '}
+      <span className="muted">· month</span> <strong>{money(spend.month)}</strong>
+    </span>
+  );
+}
+
+function UsageGroup({ tool, children }: { tool: string; children: ReactNode }) {
+  return (
+    <div className="usage-group">
+      <span className="usage-tool">{tool}</span>
+      {children}
+    </div>
+  );
+}
+
 function UsageBar({ usage }: { usage: Board['usage'] }) {
+  const { claude5h, claude7d, claudeSpend, codex5h, codex7d, opencodeSpend } = usage;
   if (!Object.values(usage).some((v) => v !== undefined)) return null;
   return (
     <div className="usage-bar">
-      {usage.claude5h && <Meter label="Claude 5h" limit={usage.claude5h} />}
-      {usage.claude7d && <Meter label="Claude week" limit={usage.claude7d} />}
-      {usage.claudeTodayUsd !== undefined && (
-        <span className="meter" title="Estimated at list price">
-          Claude today <strong>{money(usage.claudeTodayUsd)}</strong>
-        </span>
+      {(claude5h || claude7d || claudeSpend) && (
+        <UsageGroup tool="Claude">
+          {claude5h && <Meter label="5h" limit={claude5h} />}
+          {claude7d && <Meter label="week" limit={claude7d} />}
+          {claudeSpend && <SpendMeter spend={claudeSpend} title="Estimated at list price" />}
+        </UsageGroup>
       )}
-      {usage.codex5h && <Meter label="Codex 5h" limit={usage.codex5h} />}
-      {usage.codex7d && <Meter label="Codex week" limit={usage.codex7d} />}
-      {usage.opencodeTodayUsd !== undefined && (
-        <span className="meter">
-          opencode today <strong>{money(usage.opencodeTodayUsd)}</strong>
-        </span>
+      {(codex5h || codex7d) && (
+        <UsageGroup tool="Codex">
+          {codex5h && <Meter label="5h" limit={codex5h} />}
+          {codex7d && <Meter label="week" limit={codex7d} />}
+        </UsageGroup>
+      )}
+      {opencodeSpend && (
+        <UsageGroup tool="opencode">
+          <SpendMeter spend={opencodeSpend} />
+        </UsageGroup>
       )}
     </div>
   );

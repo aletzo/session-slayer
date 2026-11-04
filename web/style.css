@@ -275,7 +275,8 @@ h1 {
 
   :root:not([data-theme="light"]) .tag.claude,
   :root:not([data-theme="light"]) .tag.opencode,
-  :root:not([data-theme="light"]) .tag.codex {
+  :root:not([data-theme="light"]) .tag.codex,
+  :root:not([data-theme="light"]) .usage-group {
     border-color: #f59e0b;
     color: #f59e0b;
   }
@@ -288,7 +289,8 @@ h1 {
 
 :root[data-theme="dark"] .tag.claude,
 :root[data-theme="dark"] .tag.opencode,
-:root[data-theme="dark"] .tag.codex {
+:root[data-theme="dark"] .tag.codex,
+:root[data-theme="dark"] .usage-group {
   border-color: #f59e0b;
   color: #f59e0b;
 }
@@ -410,10 +412,31 @@ h1 {
 
 .usage-bar {
   display: flex;
-  gap: 20px;
+  gap: 10px;
   flex-wrap: wrap;
   font-size: 13px;
   margin-bottom: 12px;
+}
+
+.usage-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border: 1px solid #d97706;
+  border-radius: 10px;
+  color: #d97706;
+}
+
+.usage-group .muted {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.usage-tool {
+  font-weight: 600;
 }
 
 .meter {

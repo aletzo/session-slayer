@@ -1,3 +1,4 @@
+import { emptySpend, type Spend } from './spend';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -48,8 +49,8 @@ export class App {
   private codexError?: string;
   private codexLimits?: CodexLimits;
   private pendingNames = new Map<number, string>(); // WezTerm pane id -> name for a Codex session not seen yet
-  private opencodeTodayUsd?: number;
-  private claudeStatus: ClaudeStatus = { perSession: new Map(), todayUsd: 0 };
+  private opencodeSpend?: Spend;
+  private claudeStatus: ClaudeStatus = { perSession: new Map(), spend: emptySpend() };
   private weztermAvailable = false;
   private compacted = false;
   readonly home: string;
@@ -71,7 +72,7 @@ export class App {
       if (this.deps.listOpencode) {
         const r = await this.deps.listOpencode();
         opencode = r.sessions;
-        this.opencodeTodayUsd = r.todayUsd;
+        this.opencodeSpend = r.spend;
       }
       this.opencodeError = undefined;
     } catch (e) {
@@ -202,10 +203,10 @@ export class App {
     const usage = {
       claude5h: this.claudeStatus.fiveHour,
       claude7d: this.claudeStatus.sevenDay,
-      claudeTodayUsd: this.deps.statusDir ? this.claudeStatus.todayUsd : undefined,
+      claudeSpend: this.deps.statusDir ? this.claudeStatus.spend : undefined,
       codex5h: this.codexLimits?.fiveHour,
       codex7d: this.codexLimits?.week,
-      opencodeTodayUsd: this.opencodeTodayUsd,
+      opencodeSpend: this.opencodeSpend,
     };
     const errors = [this.sessionsError, this.opencodeError, this.codexError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];
     return { cards, usage, errors: errors.filter((e): e is string => !!e), weztermAvailable: this.weztermAvailable };

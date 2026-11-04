@@ -5,7 +5,7 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 import { wrapStatusLine } from '../src/installHooks';
 import { readClaudeStatus } from '../src/sources/claudeStatus';
-import { type OcSession, todayCost } from '../src/sources/opencode';
+import { type OcSession, sessionSpend } from '../src/sources/opencode';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'slayer-'));
 const wrapper = path.join(__dirname, '..', 'hooks', 'session-slayer-statusline.sh');
@@ -23,8 +23,8 @@ it('readClaudeStatus: per-session cost and context, limits from the newest file,
   expect(s.perSession.get('b')).toEqual({ costUsd: 0.2, contextPct: undefined, model: undefined });
   expect(s.fiveHour).toEqual({ pct: 60, resetsAt: future * 1000 });
   expect(s.sevenDay).toBeUndefined();
-  expect(s.todayUsd).toBeCloseTo(0.2); // a.json was last written in 1970
-  expect(readClaudeStatus(path.join(dir, 'missing'), now).todayUsd).toBe(0);
+  expect(s.spend.today).toBeCloseTo(0.2); // a.json was last written in 1970
+  expect(readClaudeStatus(path.join(dir, 'missing'), now).spend).toEqual({ today: 0, week: 0, month: 0 });
 });
 
 it('wrapStatusLine wraps once and keeps the original command', () => {
@@ -42,9 +42,10 @@ it('status line wrapper saves the JSON and passes the same input to the original
   expect(fs.readFileSync(path.join(dir, 'status', 'abc-123.json'), 'utf8')).toBe(input);
 });
 
-it('todayCost sums top-level sessions used since midnight', () => {
-  const now = new Date(2026, 9, 27, 15);
-  const midnight = new Date(2026, 9, 27).getTime();
+it('sessionSpend sums top-level sessions by day, Monday week and month', () => {
+  const now = new Date(2026, 9, 29, 15).getTime(); // Thursday 29 Oct
+  const at = (day: number) => new Date(2026, 9, day, 10).getTime();
   const s = (cost: number, updated: number, parentID?: string): OcSession => ({ id: 'x', cost, parentID, time: { created: 0, updated }, location: { directory: '/' } });
-  expect(todayCost([s(1, midnight + 1), s(2, midnight - 1), s(4, midnight + 5, 'p'), s(0.5, midnight + 9)], now)).toBe(1.5);
+  const sessions = [s(1, at(29)), s(2, at(26)), s(4, at(25)), s(8, at(1)), s(16, new Date(2026, 8, 30).getTime()), s(32, at(29), 'p')];
+  expect(sessionSpend(sessions, now)).toEqual({ today: 1, week: 3, month: 15 });
 });

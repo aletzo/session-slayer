@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { Runner } from '../run';
 import type { LiveSession } from '../types';
+import { emptySpend, addSpend, type Spend } from '../spend';
 
 // opencode v2 runs one background service per user; its address and password are in service.json.
 const SERVICE_FILE = path.join(process.env.XDG_STATE_HOME ?? path.join(os.homedir(), '.local', 'state'), 'opencode', 'service.json');
@@ -81,12 +82,13 @@ export function pickSessions(windows: OcWindow[], sessions: OcSession[]): { wind
   return out;
 }
 
-export type OpencodeResult = { sessions: LiveSession[]; todayUsd?: number };
+export type OpencodeResult = { sessions: LiveSession[]; spend?: Spend };
 
-// Pure: summed cost of top-level sessions used since local midnight.
-export function todayCost(sessions: OcSession[], now = new Date()): number {
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  return sessions.filter((s) => !s.parentID && s.time.updated >= midnight).reduce((sum, s) => sum + (s.cost ?? 0), 0);
+// Pure: summed cost of top-level sessions by the period they were last used in.
+export function sessionSpend(sessions: OcSession[], now = Date.now()): Spend {
+  const spend = emptySpend();
+  for (const s of sessions) if (!s.parentID) addSpend(spend, s.cost ?? 0, s.time.updated, now);
+  return spend;
 }
 
 export async function listOpencodeSessions(run: Runner, serviceFile?: string): Promise<OpencodeResult> {
@@ -95,7 +97,7 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
 
   const [windows, sessions, active] = await Promise.all([
     listWindows(run),
-    api<OcSession[]>(svc, '/api/session?limit=200&order=desc'),
+    api<OcSession[]>(svc, '/api/session?limit=1000&order=desc'),
     api<Record<string, { type: string }>>(svc, '/api/session/active'),
   ]);
 
@@ -122,7 +124,7 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
       };
     }),
   );
-  return { sessions: live, todayUsd: todayCost(sessions) };
+  return { sessions: live, spend: sessionSpend(sessions) };
 }
 
 // Creates an empty session with a title, so the new window can open it with `opencode -s <id>`.

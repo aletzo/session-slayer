@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { addSpend, emptySpend, type Spend } from '../spend';
 
 // Reads the status line JSON saved by hooks/session-slayer-statusline.sh, one file per session.
 export type Limit = { pct: number; resetsAt: number }; // resetsAt in ms
@@ -7,7 +8,7 @@ export type ClaudeStatus = {
   perSession: Map<string, { costUsd?: number; contextPct?: number; model?: string }>;
   fiveHour?: Limit;
   sevenDay?: Limit;
-  todayUsd: number; // summed cost of sessions active since local midnight
+  spend: Spend; // summed cost of sessions by the period they were last active in
 };
 
 type Raw = {
@@ -25,9 +26,7 @@ function limit(r: Raw['rate_limits'], key: string, now: number): Limit | undefin
 }
 
 export function readClaudeStatus(dir: string, now = Date.now()): ClaudeStatus {
-  const status: ClaudeStatus = { perSession: new Map(), todayUsd: 0 };
-  const d = new Date(now);
-  const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const status: ClaudeStatus = { perSession: new Map(), spend: emptySpend() };
   if (!fs.existsSync(dir)) return status;
   let newest = 0;
   for (const f of fs.readdirSync(dir)) {
@@ -46,7 +45,7 @@ export function readClaudeStatus(dir: string, now = Date.now()): ClaudeStatus {
       contextPct: raw.context_window?.used_percentage ?? undefined,
       model: raw.model?.display_name,
     });
-    if (mtime >= midnight) status.todayUsd += raw.cost?.total_cost_usd ?? 0;
+    addSpend(status.spend, raw.cost?.total_cost_usd ?? 0, mtime, now);
     // Plan limits are account-wide: take them from the most recently updated session.
     if (raw.rate_limits && mtime > newest) {
       newest = mtime;

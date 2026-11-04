@@ -1,3 +1,5 @@
+import type { Spend } from './spend';
+
 export type Column = 'working' | 'needs_input' | 'idle';
 
 export type LiveSession = {
@@ -60,9 +62,9 @@ export type Board = {
   usage: {
     claude5h?: { pct: number; resetsAt: number };
     claude7d?: { pct: number; resetsAt: number };
-    claudeTodayUsd?: number;
+    claudeSpend?: Spend;
     codex5h?: { pct: number; resetsAt: number };
     codex7d?: { pct: number; resetsAt: number };
-    opencodeTodayUsd?: number;
+    opencodeSpend?: Spend;
   };
 };

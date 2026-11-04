@@ -168,7 +168,7 @@ export function createDemoApp(now = Date.now()): App {
     statusDir,
     codexDir: path.join(home, '.codex'),
     listSessions: async () => live('claude'),
-    listOpencode: async () => ({ sessions: live('opencode'), todayUsd: 0.37 }),
+    listOpencode: async () => ({ sessions: live('opencode'), spend: { today: 0.37, week: 4.2, month: 18.9 } }),
     listCodex: async () => live('codex'),
     demo: true,
   });
