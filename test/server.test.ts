@@ -10,7 +10,9 @@ import { EventStore } from '../src/sources/hookEvents';
 import { WezTerm } from '../src/wezterm';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'slayer-'));
-fs.mkdirSync(path.join(dir, 'dev', 'repo-a'), { recursive: true });
+fs.mkdirSync(path.join(dir, 'dev', 'repo-a', '.git'), { recursive: true });
+fs.mkdirSync(path.join(dir, 'dev', 'repo-a-wt'), { recursive: true });
+fs.writeFileSync(path.join(dir, 'dev', 'repo-a-wt', '.git'), 'gitdir: x\n');
 fs.writeFileSync(path.join(dir, 'events.jsonl'), JSON.stringify({ ts: 1, hook: { session_id: 'done1', hook_event_name: 'Stop' } }) + '\n');
 
 const calls: string[][] = [];

@@ -273,7 +273,9 @@ export class App {
     if (!fs.existsSync(dev)) return [];
     return fs
       .readdirSync(dev, { withFileTypes: true })
+      // Real repos only: a worktree has a `.git` file, not a `.git` folder.
       .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
+      .filter((d) => fs.statSync(path.join(dev, d.name, '.git'), { throwIfNoEntry: false })?.isDirectory())
       .map((d) => d.name)
       .sort((a, b) => a.localeCompare(b));
   }
