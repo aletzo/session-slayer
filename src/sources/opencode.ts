@@ -18,7 +18,7 @@ export type OcSession = {
   time: { created: number; updated: number; viewed?: number; idle?: number };
   location: { directory: string };
 };
-export type OcWindow = { pid: number; cwd: string };
+export type OcWindow = { pid: number; cwd: string; args?: string };
 
 function readService(file = SERVICE_FILE): Service | undefined {
   try {
@@ -45,11 +45,14 @@ async function api<T>(svc: Service, p: string, body?: unknown): Promise<T> {
 // Running terminal windows of `bin` (not its background processes) and their folders.
 export async function listWindows(run: Runner, bin = 'opencode', notWindow = /\bserve\b/): Promise<OcWindow[]> {
   const ps = await run('ps', ['-axo', 'pid=,args=']);
-  const pids = ps
-    .split('\n')
-    .map((l) => l.trim().match(/^(\d+)\s+(\S+)(.*)$/))
-    .filter((m): m is RegExpMatchArray => !!m && path.basename(m[2]) === bin && !notWindow.test(m[3]))
-    .map((m) => Number(m[1]));
+  const args = new Map(
+    ps
+      .split('\n')
+      .map((l) => l.trim().match(/^(\d+)\s+(\S+)(.*)$/))
+      .filter((m): m is RegExpMatchArray => !!m && path.basename(m[2]) === bin && !notWindow.test(m[3]))
+      .map((m) => [Number(m[1]), m[3].trim()] as const),
+  );
+  const pids = [...args.keys()];
   if (!pids.length) return [];
   let out = '';
   try {
@@ -61,7 +64,7 @@ export async function listWindows(run: Runner, bin = 'opencode', notWindow = /\b
   let pid = 0;
   for (const line of out.split('\n')) {
     if (line.startsWith('p')) pid = Number(line.slice(1));
-    else if (line.startsWith('n') && pid) windows.push({ pid, cwd: line.slice(1) });
+    else if (line.startsWith('n') && pid) windows.push({ pid, cwd: line.slice(1), args: args.get(pid) });
   }
   return windows;
 }

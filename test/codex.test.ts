@@ -80,3 +80,15 @@ it('finds Claude windows missing from `claude agents` through hook events', asyn
   const found = await listUnlistedClaude(run, events, [{ tool: 'claude', sessionId: 'listed', pid: 10, cwd: '/a', kind: 'interactive' }]);
   expect(found.map((s) => [s.pid, s.sessionId])).toEqual([[20, 'new']]);
 });
+
+it('finds resumed Claude windows by their --resume id, even after a SessionEnd', async () => {
+  const dir = tmp();
+  const file = path.join(dir, 'events.jsonl');
+  const id = '6ffbc9f1-7109-4b04-a2f2-e76a55b49daa';
+  fs.writeFileSync(file, JSON.stringify({ ts: 5, hook: { session_id: id, cwd: '/b', hook_event_name: 'SessionEnd' } }) + '\n');
+  const events = new EventStore(file);
+  events.readNew();
+  const run = async (cmd: string) => (cmd === 'ps' ? ` 20 claude --resume ${id}` : 'p20\nn/b');
+  const found = await listUnlistedClaude(run, events, []);
+  expect(found).toMatchObject([{ pid: 20, sessionId: id, startedAt: 6 }]);
+});

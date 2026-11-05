@@ -15,7 +15,7 @@ it('listWindows: opencode windows only, not the background service', async () =>
     cmd === 'ps'
       ? '  98538 opencode\n  98620 /Users/me/.opencode/bin/opencode serve --service\n  100 /bin/zsh\n  101 /Users/me/.opencode/bin/opencode -s ses_1\n'
       : 'p98538\nfcwd\nn/Users/me/dev/a\np101\nfcwd\nn/Users/me/dev/b\n';
-  expect(await listWindows(run)).toEqual([
+  expect(await listWindows(run)).toMatchObject([
     { pid: 98538, cwd: '/Users/me/dev/a' },
     { pid: 101, cwd: '/Users/me/dev/b' },
   ]);

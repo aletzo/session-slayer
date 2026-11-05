@@ -25,15 +25,32 @@ export async function listUnlistedClaude(run: Runner, events: EventStore, listed
   const ids = new Set(listed.map((s) => s.sessionId));
   const windows = (await listWindows(run, 'claude', /^\s*(agents|mcp|doctor|update)\b/)).filter((w) => !pids.has(w.pid));
   if (!windows.length) return [];
+  const out: LiveSession[] = [];
+  const rest: OcWindow[] = [];
+  // `claude --resume <id>` names its session. Such a session can carry a SessionEnd from
+  // before the resume, so start it just after that end, or the board hides it.
+  for (const w of windows) {
+    const id = w.args?.match(/(?:^|\s)(?:--resume|-r)[\s=]+["']?([0-9a-f-]{36})/)?.[1];
+    if (!id) rest.push(w);
+    else if (!ids.has(id)) {
+      ids.add(id);
+      const endTs = events.ended.get(id);
+      out.push({ tool: 'claude', sessionId: id, pid: w.pid, cwd: w.cwd, kind: 'interactive', startedAt: endTs === undefined ? undefined : endTs + 1 });
+    }
+  }
+  if (!rest.length) return out;
   const sessions = events.hookSessions('claude').filter((s) => !ids.has(s.sessionId));
-  return pickCodexSessions(windows, sessions).map(({ window, session }) => ({
-    tool: 'claude',
-    sessionId: session.sessionId,
-    pid: window.pid,
-    cwd: window.cwd,
-    kind: 'interactive',
-    startedAt: session.startedAt,
-  }));
+  return [
+    ...out,
+    ...pickCodexSessions(rest, sessions).map(({ window, session }) => ({
+      tool: 'claude' as const,
+      sessionId: session.sessionId,
+      pid: window.pid,
+      cwd: window.cwd,
+      kind: 'interactive' as const,
+      startedAt: session.startedAt,
+    })),
+  ];
 }
 
 export async function listCodexSessions(run: Runner, events: EventStore): Promise<LiveSession[]> {
