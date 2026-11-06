@@ -5,7 +5,7 @@ import type { Runner } from './run';
 export const LOGIN_SHELL = process.env.SHELL || '/bin/zsh';
 const APP_BIN = '/Applications/WezTerm.app/Contents/MacOS/wezterm';
 
-export type Pane = { pane_id: number; tty_name?: string; cwd?: string; title?: string };
+export type Pane = { pane_id: number; window_id?: number; tty_name?: string; cwd?: string; title?: string };
 
 // Claude Code sets the tab title to "<status icon> <short summary>", e.g. "✳ Fix login redirect".
 export function claudeTitle(title: string | undefined): string | undefined {
@@ -63,18 +63,16 @@ export class WezTerm {
   }
 
   // Starts WezTerm if needed and waits until its cli answers (up to 10 s).
-  async ensureRunning(): Promise<void> {
+  async ensureRunning(): Promise<Pane[]> {
     try {
-      await this.listPanes();
-      return;
+      return await this.listPanes();
     } catch {
       await this.run('open', ['-a', 'WezTerm']);
     }
     for (let i = 0; i < 20; i++) {
       await new Promise((r) => setTimeout(r, 500));
       try {
-        await this.listPanes();
-        return;
+        return await this.listPanes();
       } catch {
         // not ready yet
       }
@@ -84,9 +82,12 @@ export class WezTerm {
 
   // Strip markers inherited from a parent Claude session (the server is often
   // started from one), or the new claude turns off transcript saving.
+  // The board runs detached, outside any pane, so name a window: without one
+  // `cli spawn` opens a new window instead of a tab.
   async spawn(cwd: string, shellCommand: string): Promise<number> {
-    await this.ensureRunning();
-    const out = await this.run(this.bin, ['cli', 'spawn', '--cwd', cwd, '--', 'env', '-u', 'CLAUDE_CODE_CHILD_SESSION', '-u', 'CLAUDECODE', LOGIN_SHELL, '-lic', shellCommand]);
+    const windowId = (await this.ensureRunning()).find((p) => p.window_id !== undefined)?.window_id;
+    const target = windowId === undefined ? [] : ['--window-id', String(windowId)];
+    const out = await this.run(this.bin, ['cli', 'spawn', ...target, '--cwd', cwd, '--', 'env', '-u', 'CLAUDE_CODE_CHILD_SESSION', '-u', 'CLAUDECODE', LOGIN_SHELL, '-lic', shellCommand]);
     const paneId = Number(out.trim());
     await this.focus(paneId);
     return paneId;

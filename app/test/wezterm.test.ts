@@ -29,6 +29,11 @@ describe('WezTerm', () => {
     expect(id).toBe(42);
     expect(calls[1]).toEqual(['wezterm', 'cli', 'spawn', '--cwd', '/h/dev/r', '--', 'env', '-u', 'CLAUDE_CODE_CHILD_SESSION', '-u', 'CLAUDECODE', 'zsh', '-lic', `claude -n 'it'\\''s; rm -rf ~'; exec zsh`]);
   });
+  it('spawn opens a tab in an existing window', async () => {
+    const { run, calls } = fakeRunner({ 'cli list': '[{"pane_id":1,"window_id":3}]', 'cli spawn': '42\n' });
+    await new WezTerm(run, 'wezterm').spawn('/h/dev/r', 'claude');
+    expect(calls[1].slice(0, 5)).toEqual(['wezterm', 'cli', 'spawn', '--window-id', '3']);
+  });
   it('a hostile name stays plain text in the shell', () => {
     const out = execFileSync('sh', ['-c', claudeCommand(`a'b; echo PWNED $(id)`).replace('claude', 'printf %s').replace('; exec zsh', '')]);
     expect(out.toString()).toBe(`-na'b; echo PWNED $(id)`);
