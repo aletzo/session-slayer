@@ -1,0 +1,36 @@
+{
+  "name": "session-slayer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,web \"tsx watch src/cli.ts serve\" \"vite\"",
+    "build": "vite build",
+    "start": "tsx src/cli.ts start",
+    "serve": "vite build && tsx src/cli.ts serve",
+    "slayer": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "demo": "vite build && tsx src/cli.ts demo",
+    "screenshots": "vite build && tsx scripts/screenshots.ts"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "concurrently": "9.1.0",
+    "playwright-core": "1.49.1",
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}

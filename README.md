@@ -1,139 +1,81 @@
-<p align="center"><img src="docs/logo.png" alt="Session Slayer logo" width="160"></p>
+<p align="center"><img src="app/docs/logo.png" alt="Session Slayer logo" width="120"></p>
 
-# Session Slayer
+# Session Slayer skill
 
-A local kanban board for your AI coding sessions. It shows every running **Claude Code**, **opencode** and **Codex** session as a card in one of three columns:
+A local kanban board of all your running **Claude Code**, **opencode** and **Codex** sessions, plus a way to start new sessions in WezTerm tabs from your agent.
 
-- **Working**: the agent is busy.
-- **Needs input**: the agent waits for you (a permission prompt or a question).
-- **Idle**: the turn is done; the agent waits for your next prompt.
+![The board in dark mode](app/docs/screenshots/board-dark.png)
 
-Click a card to jump to that session's terminal tab. The board also:
+## What you get
 
-- groups cards into lanes by ticket project (`ABC-123` → lane `ABC`) or by repo;
-- filters by lane, by tool, and with a search box;
-- starts new sessions, and renames, closes or moves them;
-- shows the git branch or worktree, the model, cost, context use and plan limits.
-
-It runs only on your machine. The server listens on `127.0.0.1` only.
-
-![The board in dark mode](docs/screenshots/board-dark.png)
-
-<details>
-<summary>More screenshots</summary>
+- **The board**: every session as a card in **Working**, **Needs input** or **Idle**. Click a card to jump to its WezTerm tab.
+- **Lanes**: cards are grouped by ticket project (`ABC-123` goes to lane `ABC`) or by repo.
+- **Filters**: by lane, by tool, and with a search box (press `/`).
+- **Actions**: start, rename, close, or move a session to WezTerm.
+- **Usage**: model, cost, context use and plan limits for each tool.
+- **Spawn from your agent**: ask for "a new session" or "one session per ticket", and the agent opens real sessions in new WezTerm tabs. They show up on the board by themselves.
 
 | Light theme | One lane selected | New session |
 |---|---|---|
-| ![Light theme](docs/screenshots/board-light.png) | ![Filtered by the ABC lane](docs/screenshots/filtered.png) | ![New session dialog](docs/screenshots/new-session.png) |
+| ![Light theme](app/docs/screenshots/board-light.png) | ![Filtered by the ABC lane](app/docs/screenshots/filtered.png) | ![New session dialog](app/docs/screenshots/new-session.png) |
 
-</details>
+Everything runs on your machine only. The server listens on `127.0.0.1`.
 
 ## Requirements
 
-- macOS (it uses `ps`, `lsof` and `open -a`)
-- Node.js 22 and pnpm
-- [WezTerm](https://wezterm.org): the terminal the board can jump to (`brew install --cask wezterm`)
-- At least one of:
-  - **Claude Code**
-  - **opencode v2** or later (the v1 plugin API is not supported)
-  - **Codex CLI**
+- macOS
+- Node.js 26 (current LTS) and pnpm
+- [WezTerm](https://wezterm.org)
+- At least one of: Claude Code, opencode v2+, Codex CLI
 
-Start your sessions in WezTerm (or with the board's **+ New session** button), so the board can jump to them. Sessions in other terminals still show up, with a "not in WezTerm" badge. For Idle ones, **Move to WezTerm** reopens them there.
-
-## Setup
+## Install
 
 ```sh
-git clone <this repo> session-slayer
-cd session-slayer
-pnpm install
-pnpm slayer install-hooks
-pnpm start
+skills add aletzo/session-slayer --skill session-slayer -g
 ```
 
-Then open <http://127.0.0.1:4545>.
+Then ask your agent: **"set up session slayer"** (or `/session-slayer setup`). The agent:
 
-### What `install-hooks` changes
+1. Checks the tools above and offers to install what is missing.
+2. Asks which folder holds your git repos (for example `~/dev`).
+3. Installs the app and the hooks. Your `~/.claude/settings.json` (and `~/.codex/hooks.json` if Codex is installed) get a backup first.
+4. Starts the board and gives you the URL.
 
-It is safe to run more than once: it never adds an entry twice and keeps your existing hooks.
+## Use
 
-| Tool | File | Change | Backup |
-|---|---|---|---|
-| Claude Code | `~/.claude/settings.json` | Adds hook entries (`UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SessionEnd`). Puts a small wrapper in front of your status line, which saves the status line data for the board and then runs your own status line unchanged. | `settings.json.session-slayer.bak` |
-| Codex | `~/.codex/hooks.json` | Adds hook entries (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`, `Interrupt`, `SessionEnd`). Codex asks you once to review the new hooks; approve them. | `hooks.json.session-slayer.bak` |
-| opencode | nothing | The board reads opencode's background service directly (`~/.local/state/opencode/service.json`). | — |
-
-The hooks only append one line per event to `~/.session-slayer/events.jsonl`. They never block or slow down the agent.
-
-To undo the changes, restore the `.session-slayer.bak` files.
-
-### Where each number comes from
-
-| | Claude Code | opencode | Codex |
-|---|---|---|---|
-| Live sessions | `claude agents --json` | running `opencode` windows plus the service's session list | running `codex` windows plus hook events |
-| Column | hook events | service: active sessions, pending permissions and forms | hook events |
-| Name | your rename → tab title → first prompt | your rename → session title | your rename → first prompt |
-| Model | status line | session | hook events |
-| Cost ($) | status line (estimate at list price) | session | — |
-| Context % | status line | — | — |
-| 5-hour / weekly plan % | status line (Pro and Max plans only) | — | its session files (`~/.codex/sessions`, ChatGPT plans) |
-
-## Using it
-
-- **Click a card** to jump to its WezTerm tab.
-- **Click a card's name** to rename it. A ticket key in the name (e.g. `ABC-123 fix login`) moves the card to the `ABC` lane.
-- **Close** (Idle and Needs input cards) closes the WezTerm pane, which ends the session.
-- **Move to WezTerm** (Idle cards outside WezTerm) stops the session and reopens it in a new WezTerm tab with the same conversation.
-- **+ New session**: pick a repo from `~/dev`, a tool, and an optional name.
-- **Press `/`** to jump to the search box.
-- **Theme**: light, dark, or system.
-- **The horde** under the board grows with your session count (0 to 20, then 21+).
-
-### Lanes
-
-- A ticket key like `ABC-123` creates the lane `ABC`. The tool looks for the key in the session's folder first, then its first prompt, then its name.
-- A session without a ticket goes to its repo lane (`~/dev/<repo>`), or to `other`.
-- A ticket session shows only in its ticket lane, never also in its repo lane.
-
-## Developing
-
-```sh
-pnpm dev        # server with auto-restart + page with hot reload: http://localhost:5173
-pnpm test       # unit tests (Vitest)
-pnpm typecheck  # TypeScript
-pnpm build      # build the page into dist/web
-pnpm demo       # the board with made-up sessions (actions turned off): http://127.0.0.1:4545
-pnpm screenshots  # retake docs/screenshots/ from the demo, using your installed Google Chrome
-```
-
-Demo mode (`src/demo.ts`) reads nothing from your machine and runs no real commands, so it is safe for screenshots.
-
-`pnpm dev` runs the API server on port 4545 and the Vite dev server on port 5173, which passes `/api` calls to the API server. Set `PORT` to change the API port, and `SESSION_SLAYER_DIR` to use another data folder (default `~/.session-slayer`).
-
-### Code map
-
-| Path | Job |
+| Say | What happens |
 |---|---|
-| `src/cli.ts` | Entry point: `serve` and `install-hooks` |
-| `src/app.ts` | Polls all sources every 2 s; actions (focus, close, move, rename, new session) |
-| `src/server.ts` | HTTP API and the live update stream (Server-Sent Events) |
-| `src/board.ts` | Pure rules: column, name and lane for each card |
-| `src/tags.ts`, `src/lanes.ts` | Pure rules: ticket and repo tags, lane order |
-| `src/sources/claudeAgents.ts` | Claude Code live sessions |
-| `src/sources/claudeStatus.ts` | Claude Code status line data: cost, context, plan limits |
-| `src/sources/hookEvents.ts` | Reads `events.jsonl` written by the hooks |
-| `src/sources/opencode.ts` | opencode v2 service client |
-| `src/sources/codex.ts` | Codex sessions from hook events and running windows |
-| `src/wezterm.ts` | `wezterm cli` commands: list, focus, kill, spawn |
-| `src/installHooks.ts` | Hook and status line installers |
-| `hooks/` | The shell scripts the agents run |
-| `web/` | The React page |
-| `docs/specs/` | Design spec |
+| "open the board" | Starts the board if it is not running, and opens it. |
+| "start a new session in `<repo>` to `<task>`" | Opens one Claude Code session in a new WezTerm tab. |
+| "one session per ticket: ABC-1 ABC-2 ABC-3" | Opens one session per item, each in its own tab. |
 
-The rules that decide what a card shows are pure functions (`board.ts`, `tags.ts`, `lanes.ts`) with table tests. To add a tool, add a source in `src/sources/` that returns `LiveSession[]`, and add it to `poll()` in `src/app.ts`.
+The board takes the first free port from 45300 to 45399. The port is saved in `~/.session-slayer/instance.json`.
 
-## Limits
+## WezTerm themes
 
-- **opencode and Codex** match windows to sessions by folder. With two windows in the same folder, the newest session goes to the first window found.
-- **Codex** support is written from its hook documentation and not yet tested on a real install.
-- **Cost** for Claude Code is an estimate at list price, not your bill.
+Setup offers three WezTerm configs (in `wezterm/`):
+
+| Catppuccin (default) | Solarized | WezTerm defaults |
+|---|---|---|
+| ![Catppuccin theme](wezterm/screenshots/catppuccin.png) | ![Solarized theme](wezterm/screenshots/solarized.png) | ![WezTerm defaults](wezterm/screenshots/empty.png) |
+
+Catppuccin follows the macOS light / dark setting (the shot shows light mode).
+
+## Files
+
+| File | Job |
+|---|---|
+| `SKILL.md` | What the agent reads first: picks setup, board or spawn |
+| `SETUP.md` | The setup steps |
+| `SPAWN.md` | Starting one session or a batch in WezTerm |
+| `wezterm/catppuccin.lua`, `wezterm/solarized.lua`, `wezterm/empty.lua` | WezTerm configs: two themes and a clean one with the WezTerm defaults. Setup lets you pick one |
+| `app/` | The board app. Details and developer notes: [app/README.md](app/README.md) |
+
+## Undo
+
+```sh
+cd <skill folder>/app && pnpm slayer uninstall-hooks
+rm -rf ~/.session-slayer
+```
+
+`uninstall-hooks` removes only the Session Slayer hooks and status line wrapper, so settings you changed after setup stay. The `.session-slayer.bak` files hold your settings from before the first setup: restore them only as a last resort.
