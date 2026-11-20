@@ -91,6 +91,17 @@ it('focus outside WezTerm returns a message', async () => {
   expect(r.message).toMatch(/Not in WezTerm/);
 });
 
+it('send: types into the WezTerm tab, then Enter; refuses outside WezTerm and empty text', async () => {
+  calls.length = 0;
+  expect((await req('POST', '/api/sessions/done1/send', { text: 'hello\nthere' })).status).toBe(200);
+  expect(calls.filter((c) => c[2] === 'send-text')).toEqual([
+    ['wezterm', 'cli', 'send-text', '--pane-id', '5', '--', 'hello\nthere'],
+    ['wezterm', 'cli', 'send-text', '--pane-id', '5', '--no-paste', '\r'],
+  ]);
+  expect((await req('POST', '/api/sessions/busy1/send', { text: 'x' })).status).toBe(409);
+  expect((await req('POST', '/api/sessions/done1/send', { text: ' ' })).status).toBe(400);
+});
+
 it('close: 409 when not idle, kills the pane when idle', async () => {
   expect((await req('POST', '/api/sessions/busy1/close')).status).toBe(409);
   calls.length = 0;

@@ -30,6 +30,10 @@ export function opencodeCommand(sessionId?: string): string {
   return `${sessionId ? `opencode -s ${shellQuote(sessionId)}` : 'opencode'}; exec ${LOGIN_SHELL}`;
 }
 
+export function piCommand(sessionId?: string): string {
+  return `${sessionId ? `pi --session ${shellQuote(sessionId)}` : 'pi'}; exec ${LOGIN_SHELL}`;
+}
+
 export function codexCommand(sessionId?: string): string {
   return `${sessionId ? `codex resume ${shellQuote(sessionId)}` : 'codex'}; exec ${LOGIN_SHELL}`;
 }
@@ -56,6 +60,13 @@ export class WezTerm {
   async focus(paneId: number): Promise<void> {
     await this.run(this.bin, ['cli', 'activate-pane', '--pane-id', String(paneId)]);
     await this.run('open', ['-a', 'WezTerm']);
+  }
+
+  // Types text into the pane as if the user typed it, then presses Enter.
+  // The text goes in as a paste, so its line breaks do not submit it early.
+  async sendText(paneId: number, text: string): Promise<void> {
+    await this.run(this.bin, ['cli', 'send-text', '--pane-id', String(paneId), '--', text]);
+    await this.run(this.bin, ['cli', 'send-text', '--pane-id', String(paneId), '--no-paste', '\r']);
   }
 
   async kill(paneId: number): Promise<void> {

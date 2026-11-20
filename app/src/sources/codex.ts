@@ -49,6 +49,7 @@ export async function listUnlistedClaude(run: Runner, events: EventStore, listed
       cwd: window.cwd,
       kind: 'interactive' as const,
       startedAt: session.startedAt,
+      windowGuessed: true,
     })),
   ];
 }
@@ -63,5 +64,6 @@ export async function listCodexSessions(run: Runner, events: EventStore): Promis
     kind: 'interactive',
     startedAt: session.startedAt,
     model: session.model,
+    windowGuessed: true,
   }));
 }

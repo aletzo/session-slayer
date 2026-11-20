@@ -73,7 +73,7 @@ function useSystemDark(): boolean {
   return dark;
 }
 
-const TOOL_LABEL = { claude: 'Claude Code', opencode: 'opencode', codex: 'Codex' } as const;
+const TOOL_LABEL = { claude: 'Claude Code', opencode: 'opencode', codex: 'Codex', pi: 'pi' } as const;
 
 export function App() {
   const [board, setBoard] = useState<Board | null>(null);
@@ -185,7 +185,7 @@ export function App() {
           </div>
         </div>
         <div className="group">
-          {([null, 'claude', 'opencode', 'codex'] as const).map((t) => (
+          {([null, 'claude', 'opencode', 'codex', 'pi'] as const).map((t) => (
             <button key={t ?? 'all'} className={toolFilter === t ? 'on' : ''} onClick={() => setToolFilter(t)}>
               {t ? TOOL_LABEL[t] : 'all tools'}
             </button>
@@ -501,7 +501,7 @@ function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
           </select>
         </label>
         <div className="tool-switch">
-          {(['claude', 'opencode', 'codex'] as const).map((t) => (
+          {(['claude', 'opencode', 'codex', 'pi'] as const).map((t) => (
             <button key={t} className={tool === t ? 'chip on' : 'chip'} onClick={() => setTool(t)}>
               {TOOL_LABEL[t]}
             </button>

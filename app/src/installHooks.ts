@@ -133,3 +133,30 @@ export function uninstallHooks(file: string, codex = false): boolean {
   fs.writeFileSync(file, JSON.stringify(next, null, 2) + '\n');
   return true;
 }
+
+// pi has no hooks file: it loads extensions from ~/.pi/agent/extensions/. A link (not a copy)
+// keeps the extension up to date with the skill. Returns true when the link changed.
+export function installPiExtension(extensionsDir: string, source: string): boolean {
+  const link = path.join(extensionsDir, 'session-slayer.ts');
+  try {
+    if (fs.readlinkSync(link) === source) return false;
+  } catch {
+    // missing, or a plain file
+  }
+  fs.mkdirSync(extensionsDir, { recursive: true });
+  fs.rmSync(link, { force: true });
+  fs.symlinkSync(source, link);
+  return true;
+}
+
+// Removes the link only when it points to a Session Slayer extension.
+export function uninstallPiExtension(extensionsDir: string): boolean {
+  const link = path.join(extensionsDir, 'session-slayer.ts');
+  try {
+    if (!fs.readlinkSync(link).endsWith('session-slayer-pi.ts')) return false;
+  } catch {
+    return false;
+  }
+  fs.unlinkSync(link);
+  return true;
+}

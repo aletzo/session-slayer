@@ -1,7 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { columnFromEvent, endsWithQuestion } from '../board';
-import type { Column, NotificationKind, SessionEvent } from '../types';
+import type { Column, NotificationKind, Reply, SessionEvent } from '../types';
+
+// One line, at most `max` characters: enough to see what a session is at or waits on.
+export function shortReply(text: string | undefined, max = 300): string | undefined {
+  const t = text?.replace(/\s+/g, ' ').trim();
+  if (!t) return undefined;
+  return t.length > max ? `${t.slice(0, max - 3)}...` : t;
+}
 
 // One line as written by hooks/session-slayer-hook.sh: {"ts": <ms>, "tool"?: "codex", "hook": <hook input>}.
 type Line = {
@@ -17,6 +24,7 @@ type Line = {
     notification_type?: string;
     last_assistant_message?: string;
     message?: string;
+    pid?: number;
   };
 };
 
@@ -44,20 +52,23 @@ export function parseLine(line: string): SessionEvent | null {
     prompt: h.prompt,
     notificationKind: h.hook_event_name === 'Notification' ? notificationKind(h) : undefined,
     asks: h.hook_event_name === 'Stop' && endsWithQuestion(h.last_assistant_message) ? true : undefined,
-    tool: l.tool === 'codex' ? 'codex' : 'claude',
+    reply: h.hook_event_name === 'Stop' ? shortReply(h.last_assistant_message) : undefined,
+    tool: l.tool === 'codex' || l.tool === 'pi' ? l.tool : 'claude',
+    pid: typeof h.pid === 'number' ? h.pid : undefined,
     cwd: h.cwd,
     model: h.model,
   };
 }
 
 // What the hook events tell about a session, for tools without a live session list (Codex).
-export type HookSession = { sessionId: string; tool: 'claude' | 'codex'; cwd?: string; model?: string; startedAt: number; lastTs: number };
+export type HookSession = { sessionId: string; tool: 'claude' | 'codex' | 'pi'; cwd?: string; model?: string; pid?: number; startedAt: number; lastTs: number };
 
 export class EventStore {
   private offset = 0;
   private partial = '';
   private last = new Map<string, SessionEvent>();
   private first = new Map<string, string>();
+  private replies = new Map<string, Reply>();
   readonly ended = new Map<string, number>(); // sessionId -> SessionEnd ts
   private sessions = new Map<string, HookSession>();
   private streak = new Map<string, { column: Column; since: number }>(); // current column and when it began
@@ -125,12 +136,13 @@ export class EventStore {
 
   private add(e: SessionEvent): void {
     const s = this.sessions.get(e.sessionId) ?? { sessionId: e.sessionId, tool: e.tool ?? 'claude', startedAt: e.ts, lastTs: e.ts };
-    this.sessions.set(e.sessionId, { ...s, cwd: e.cwd ?? s.cwd, model: e.model ?? s.model, lastTs: e.ts });
+    this.sessions.set(e.sessionId, { ...s, cwd: e.cwd ?? s.cwd, model: e.model ?? s.model, pid: e.pid ?? s.pid, lastTs: e.ts });
     if (e.event === 'SessionEnd') this.ended.set(e.sessionId, e.ts);
     else this.ended.delete(e.sessionId); // resumed: same sessionId comes back
     if (e.event === 'UserPromptSubmit' && e.prompt && !this.first.has(e.sessionId)) {
       this.first.set(e.sessionId, e.prompt);
     }
+    if (e.reply) this.replies.set(e.sessionId, { text: e.reply, ts: e.ts });
     const column = columnFromEvent(e);
     if (column) {
       this.last.set(e.sessionId, e);
@@ -152,6 +164,10 @@ export class EventStore {
 
   firstPrompt(id: string): string | undefined {
     return this.first.get(id);
+  }
+
+  lastReply(id: string): Reply | undefined {
+    return this.replies.get(id);
   }
 }
 

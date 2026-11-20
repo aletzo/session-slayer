@@ -6,11 +6,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { App } from './app';
 import { createDemoApp } from './demo';
-import { installCodexHooks, installHooks, uninstallHooks } from './installHooks';
+import { installCodexHooks, installHooks, installPiExtension, uninstallHooks, uninstallPiExtension } from './installHooks';
 import { Names } from './names';
 import { run } from './run';
 import { createServer } from './server';
+import { formatSitrep } from './sitrep';
+import type { Board, Card } from './types';
 import { listCodexSessions } from './sources/codex';
+import { listPiSessions } from './sources/pi';
 import { EventStore } from './sources/hookEvents';
 import { createOpencodeSession, listOpencodeSessions } from './sources/opencode';
 import { WezTerm } from './wezterm';
@@ -51,10 +54,12 @@ async function serve(demo = false): Promise<void> {
     events,
     names: new Names(path.join(dataDir, 'names.json')),
     wezterm: new WezTerm(run),
-    listOpencode: () => listOpencodeSessions(run),
+    listOpencode: () => listOpencodeSessions(run, undefined, path.join(dataDir, 'opencode-spend.json')),
     statusDir: path.join(dataDir, 'status'),
+    claudeLedgerFile: path.join(dataDir, 'claude-spend.json'),
     createOpencode: (dir, title) => createOpencodeSession(dir, title),
     listCodex: () => listCodexSessions(run, events),
+    listPi: () => listPiSessions(run, events),
     codexDir: path.join(os.homedir(), '.codex'),
     projectsDir: process.env.SESSION_SLAYER_PROJECTS_DIR ?? readConfig().projectsDir,
   });
@@ -130,6 +135,50 @@ async function startDetached(): Promise<void> {
 const cmd = process.argv[2];
 if (cmd === 'start') {
   await startDetached();
+} else if (cmd === 'stop' || cmd === 'restart') {
+  // Restart after an update: a running board keeps its old server code until it stops.
+  const inst = await runningInstance();
+  if (inst) {
+    process.kill(inst.pid, 'SIGTERM');
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline && (await runningInstance())) await new Promise((r) => setTimeout(r, 300));
+    console.log(`Stopped the board on port ${inst.port}`);
+  } else console.log('No board runs');
+  if (cmd === 'restart') await startDetached();
+} else if (cmd === 'send') {
+  // pnpm slayer send <session id or part of its name> <message...>
+  const [who, ...words] = process.argv.slice(3);
+  const text = words.join(' ');
+  const inst = await runningInstance();
+  if (!inst || !who || !text) {
+    console.log(inst ? 'Usage: pnpm slayer send <session id or name> <message>' : 'No Session Slayer board runs. Start it with: pnpm start');
+    process.exit(1);
+  }
+  const base = `http://127.0.0.1:${inst.port}`;
+  const board = (await (await fetch(`${base}/api/board`)).json()) as Board;
+  // Exact id, then exact name, then part of a name: an exact match never counts as ambiguous.
+  const w = who.toLowerCase();
+  const tiers = [(c: Card) => c.sessionId === who, (c: Card) => c.name.toLowerCase() === w, (c: Card) => c.name.toLowerCase().includes(w)];
+  const found = tiers.map((t) => board.cards.filter(t)).find((f) => f.length) ?? [];
+  if (found.length !== 1) {
+    console.log(found.length ? `"${who}" matches ${found.length} sessions: ${found.map((c) => c.name).join(', ')}` : `No session matches "${who}"`);
+    process.exit(1);
+  }
+  const res = await fetch(`${base}/api/sessions/${found[0].sessionId}/send`, { method: 'POST', body: JSON.stringify({ text }) });
+  if (!res.ok) {
+    console.log(`Not sent: ${((await res.json()) as { error?: string }).error}`);
+    process.exit(1);
+  }
+  console.log(`Sent to ${found[0].name} (${found[0].tool})`);
+} else if (cmd === 'sitrep') {
+  // Read-only: asks the running board, never starts one.
+  const inst = await runningInstance();
+  if (!inst) {
+    console.log('No Session Slayer board runs. Start it with: pnpm start');
+    process.exit(1);
+  }
+  const res = await fetch(`http://127.0.0.1:${inst.port}/api/board`, { signal: AbortSignal.timeout(5000) });
+  console.log(formatSitrep(await res.json()));
 } else if (cmd === 'serve') {
   await serve();
 } else if (cmd === 'demo') {
@@ -169,11 +218,20 @@ if (cmd === 'start') {
   } else {
     console.log('Codex not found: skipped Codex hooks.');
   }
+  const piExtensions = path.join(os.homedir(), '.pi', 'agent', 'extensions');
+  if (process.env.PATH?.split(':').some((d) => fs.existsSync(path.join(d, 'pi')))) {
+    const changed = installPiExtension(piExtensions, path.join(root, 'hooks', 'session-slayer-pi.ts'));
+    console.log(changed ? `pi extension linked in ${piExtensions}. Restart pi (or /reload) to load it.` : `pi extension already linked in ${piExtensions}`);
+  } else {
+    console.log('pi not found: skipped the pi extension.');
+  }
 } else if (cmd === 'uninstall-hooks') {
   for (const [file, codex] of [[path.join(os.homedir(), '.claude', 'settings.json'), false], [path.join(os.homedir(), '.codex', 'hooks.json'), true]] as const) {
     console.log(uninstallHooks(file, codex) ? `Session Slayer hooks removed from ${file}` : `No Session Slayer hooks in ${file}`);
   }
+  const piExtensions = path.join(os.homedir(), '.pi', 'agent', 'extensions');
+  console.log(uninstallPiExtension(piExtensions) ? `pi extension removed from ${piExtensions}` : `No Session Slayer pi extension in ${piExtensions}`);
 } else {
-  console.log('Usage: pnpm slayer <start|serve|demo|init --projects-dir <folder>|install-hooks|uninstall-hooks>');
+  console.log('Usage: pnpm slayer <start|stop|restart|sitrep|send <session> <message>|serve|demo|init --projects-dir <folder>|install-hooks|uninstall-hooks>');
   process.exit(1);
 }

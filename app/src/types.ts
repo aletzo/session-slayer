@@ -3,7 +3,7 @@ import type { Spend } from './spend';
 export type Column = 'working' | 'needs_input' | 'idle';
 
 export type LiveSession = {
-  tool: 'claude' | 'opencode' | 'codex';
+  tool: 'claude' | 'opencode' | 'codex' | 'pi';
   sessionId: string;
   pid?: number;
   cwd: string;
@@ -15,7 +15,12 @@ export type LiveSession = {
   model?: string;
   status?: string;
   state?: string;
+  windowGuessed?: boolean; // paired to its window by folder and recency, not by process
+  lastReply?: Reply; // opencode only: Claude and Codex replies come from hook events
 };
+
+// The agent's last reply, shortened, and when it was written.
+export type Reply = { text: string; ts: number };
 
 export type NotificationKind = 'permission' | 'idle' | 'other';
 
@@ -27,7 +32,9 @@ export type SessionEvent = {
   prompt?: string;
   notificationKind?: NotificationKind;
   asks?: boolean; // Stop: the last reply ends with a question
-  tool?: 'claude' | 'codex';
+  reply?: string; // Stop: the last reply, shortened
+  tool?: 'claude' | 'codex' | 'pi';
+  pid?: number; // pi: the process that wrote the event
   cwd?: string;
   model?: string;
 };
@@ -53,6 +60,7 @@ export type Card = {
   costUsd?: number;
   contextPct?: number;
   model?: string;
+  lastReply?: Reply;
 };
 
 export type Board = {

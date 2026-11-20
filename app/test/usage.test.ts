@@ -5,6 +5,7 @@ import path from 'node:path';
 import { expect, it } from 'vitest';
 import { wrapStatusLine } from '../src/installHooks';
 import { readClaudeStatus } from '../src/sources/claudeStatus';
+import { writeLedger } from '../src/spend';
 import { type OcSession, sessionSpend } from '../src/sources/opencode';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'slayer-'));
@@ -58,5 +59,25 @@ it('sessionSpend sums top-level sessions by day, Monday week and month', () => {
   const at = (day: number) => new Date(2026, 9, day, 10).getTime();
   const s = (cost: number, updated: number, parentID?: string): OcSession => ({ id: 'x', cost, parentID, time: { created: 0, updated }, location: { directory: '/' } });
   const sessions = [s(1, at(29)), s(2, at(26)), s(4, at(25)), s(8, at(1)), s(16, new Date(2026, 8, 30).getTime()), s(32, at(29), 'p')];
-  expect(sessionSpend(sessions, now)).toEqual({ today: 1, week: 3, month: 15 });
+  expect(sessionSpend(sessions.map((x, i) => ({ ...x, id: `s${i}` })), {}, now)).toEqual({ today: 1, week: 3, month: 15 });
+});
+
+it('sessionSpend splits a session that runs over several days by the day the cost was spent', () => {
+  const day = (d: number, h = 10) => new Date(2026, 10, d, h).getTime();
+  const s = (cost: number, updated: number): OcSession => ({ id: 'x', cost, time: { created: 0, updated }, location: { directory: '/' } });
+  const ledger = {};
+  sessionSpend([s(20, day(16))], ledger, day(16, 18));
+  expect(sessionSpend([s(21, day(17))], ledger, day(17, 18))).toEqual({ today: 1, week: 21, month: 21 });
+});
+
+it('sessionSpend counts a lower total on a later day as a restart', () => {
+  const day = (d: number) => new Date(2026, 10, d, 10).getTime();
+  const s = (cost: number, updated: number): OcSession => ({ id: 'x', cost, time: { created: 0, updated }, location: { directory: '/' } });
+  const ledger = {};
+  sessionSpend([s(20, day(16))], ledger, day(16));
+  expect(sessionSpend([s(5, day(17))], ledger, day(17)).today).toBe(5);
+});
+
+it('writeLedger does not throw when the file cannot be written', () => {
+  expect(() => writeLedger(path.join(tmp(), 'missing', 'x.json'), { a: { 1: 1 } })).not.toThrow();
 });

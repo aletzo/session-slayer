@@ -2,7 +2,7 @@
 
 # Session Slayer skill
 
-A local kanban board of all your running **Claude Code**, **opencode** and **Codex** sessions, plus a way to start new sessions in WezTerm tabs from your agent.
+A local kanban board of all your running **Claude Code**, **opencode**, **Codex** and **pi** sessions, plus a way to start new sessions in WezTerm tabs from your agent.
 
 ![The board in dark mode](app/docs/screenshots/board-dark.png)
 
@@ -10,14 +10,21 @@ A local kanban board of all your running **Claude Code**, **opencode** and **Cod
 
 - **The board**: every session as a card in **Working**, **Needs input** or **Idle**. Click a card to jump to its WezTerm tab.
 - **Lanes**: cards are grouped by ticket project (`ABC-123` goes to lane `ABC`) or by repo.
-- **Filters**: by lane, by tool, and with a search box (press `/`).
+- **Filters**: by lane, by tool (Claude Code, opencode, Codex, pi), and with a search box (press `/`).
 - **Actions**: start, rename, close, or move a session to WezTerm.
 - **Usage**: model, cost, context use and plan limits for each tool.
 - **Spawn from your agent**: ask for "a new session" or "one session per ticket", and the agent opens real sessions in new WezTerm tabs. They show up on the board by themselves.
+- **Sitrep**: ask "give me a sitrep" for one table of all sessions: state, ticket, branch and each session's last reply. `pnpm slayer sitrep` prints the same.
+- **Session control**: ask "start session control" for one session that only controls the others: it spawns sessions, gives sitreps, passes messages, and hands any other work to a new session.
+- **Send a message to any session**: `pnpm slayer send <session> <message>` types it into the session's WezTerm tab (Claude Code, opencode, Codex or pi).
 
 | Light theme | One lane selected | New session |
 |---|---|---|
 | ![Light theme](app/docs/screenshots/board-light.png) | ![Filtered by the ABC lane](app/docs/screenshots/filtered.png) | ![New session dialog](app/docs/screenshots/new-session.png) |
+
+### pi support
+
+pi has no hook settings, so the board ships a small pi extension (`app/hooks/session-slayer-pi.ts`). It writes pi's events (session start, prompt, tool use, reply, end) to the same event file as the Claude Code and Codex hooks, with the pi process id. The board then knows exactly which pi process and WezTerm tab a session is in, with no guessing. Running pi sessions load the extension after a restart or `/reload`.
 
 Everything runs on your machine only. The server listens on `127.0.0.1`.
 
@@ -26,7 +33,7 @@ Everything runs on your machine only. The server listens on `127.0.0.1`.
 - macOS
 - Node.js 26 (current LTS) and pnpm
 - [WezTerm](https://wezterm.org)
-- At least one of: Claude Code, opencode v2+, Codex CLI
+- At least one of: Claude Code, opencode v2+, Codex CLI, pi
 
 ## Install
 
@@ -38,7 +45,7 @@ Then ask your agent: **"set up session slayer"** (or `/session-slayer setup`). T
 
 1. Checks the tools above and offers to install what is missing.
 2. Asks which folder holds your git repos (for example `~/dev`).
-3. Installs the app and the hooks. Your `~/.claude/settings.json` (and `~/.codex/hooks.json` if Codex is installed) get a backup first.
+3. Installs the app and the hooks. Your `~/.claude/settings.json` (and `~/.codex/hooks.json` if Codex is installed) get a backup first. If pi is installed, it links the board's pi extension into `~/.pi/agent/extensions/`.
 4. Starts the board and gives you the URL.
 
 ## Use

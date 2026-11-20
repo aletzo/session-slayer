@@ -40,6 +40,7 @@ const SESSIONS: Demo[] = [
   { id: 'o2', tool: 'opencode', repo: 'billing', title: 'ABC-150 rate limiter', column: 'working', minutes: 6, branch: 'feat/ABC-150-rate-limit', model: 'glm-5.3-flash', cost: 0.11 },
   { id: 'x1', tool: 'codex', repo: 'design-system', prompt: 'Fix broken links in the guides', column: 'needs_input', minutes: 1, branch: 'fix/links', model: 'gpt-5.5' },
   { id: 'x2', tool: 'codex', repo: 'analytics', prompt: 'Add unit tests for cart totals', column: 'idle', minutes: 40, branch: 'test/cart-totals', model: 'gpt-5.5' },
+  { id: 'p1', tool: 'pi', repo: 'api', sub: '.pi/worktrees/request-ids', worktree: true, prompt: 'ABC-155 add request ids to the logs', column: 'working', minutes: 3, branch: 'feat/ABC-155-request-ids', model: 'claude-sonnet-5-5' },
 ];
 
 const LAST_EVENT = { working: 'PostToolUse', idle: 'Stop' } as const;
@@ -55,13 +56,13 @@ export function createDemoApp(now = Date.now()): App {
   const pid = (i: number) => 40_000 + i;
   const tty = (i: number) => `ttys0${10 + i}`;
 
-  // Hook events (Claude and Codex), written like the real hook script does.
+  // Hook events (Claude, Codex, pi), written like the real hook script and pi extension do.
   const lines: string[] = [];
   const add = (ts: number, hook: object, tool?: string) => lines.push(JSON.stringify({ ts, ...(tool ? { tool } : {}), hook }));
   for (const d of SESSIONS.filter((s) => s.tool !== 'opencode')) {
-    const tool = d.tool === 'codex' ? 'codex' : undefined;
+    const tool = d.tool === 'codex' || d.tool === 'pi' ? d.tool : undefined;
     const since = now - d.minutes * MIN;
-    const base = { session_id: d.id, cwd: cwd(d), model: d.model };
+    const base = { session_id: d.id, cwd: cwd(d), model: d.model, ...(d.tool === 'pi' ? { pid: pid(SESSIONS.indexOf(d)) } : {}) };
     add(since - 30 * MIN, { ...base, hook_event_name: 'UserPromptSubmit', prompt: d.prompt ?? d.title ?? '' }, tool);
     // an earlier finished turn, so the current column starts exactly at `since`
     if (d.column === 'working') add(since - 20 * MIN, { ...base, hook_event_name: 'Stop' }, tool);
@@ -138,7 +139,7 @@ export function createDemoApp(now = Date.now()): App {
               columnSince: now - d.minutes * MIN,
             }
           : {}),
-        ...(tool === 'codex' ? { model: d.model } : {}),
+        ...(tool === 'codex' || tool === 'pi' ? { model: d.model } : {}),
       }));
 
   // Codex plan limits, as Codex writes them into its session files.
@@ -170,6 +171,7 @@ export function createDemoApp(now = Date.now()): App {
     listSessions: async () => live('claude'),
     listOpencode: async () => ({ sessions: live('opencode'), spend: { today: 0.37, week: 4.2, month: 18.9 } }),
     listCodex: async () => live('codex'),
+    listPi: async () => live('pi'),
     demo: true,
   });
 }

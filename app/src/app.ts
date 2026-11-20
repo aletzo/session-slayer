@@ -12,7 +12,7 @@ import { type CodexLimits, readCodexLimits } from './sources/codexStatus';
 import type { OpencodeResult } from './sources/opencode';
 import { type EventStore, firstPromptFromTranscript, recapFromTranscript } from './sources/hookEvents';
 import type { Board, Column, LiveSession } from './types';
-import { claudeCommand, claudeTitle, codexCommand, opencodeCommand, resumeCommand, LOGIN_SHELL, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
+import { claudeCommand, claudeTitle, codexCommand, opencodeCommand, piCommand, resumeCommand, LOGIN_SHELL, type Pane, paneForTty, ttysForPids, type WezTerm } from './wezterm';
 
 export class HttpError extends Error {
   constructor(
@@ -33,8 +33,10 @@ export type AppDeps = {
   listSessions?: () => Promise<LiveSession[]>;
   listOpencode?: () => Promise<OpencodeResult>;
   statusDir?: string;
+  claudeLedgerFile?: string; // per-day Claude cost totals
   createOpencode?: (directory: string, title: string) => Promise<string>;
   listCodex?: () => Promise<LiveSession[]>;
+  listPi?: () => Promise<LiveSession[]>;
   codexDir?: string; // ~/.codex, for Codex plan limits
   demo?: boolean; // made-up sessions: actions are turned off
 };
@@ -81,8 +83,8 @@ export class App {
     } catch (e) {
       this.opencodeError = `can't read opencode sessions: ${(e as Error).message}`;
     }
-    this.sessions = [...claude, ...opencode, ...this.sessions.filter((s) => s.tool === 'codex')];
-    if (this.deps.statusDir) this.claudeStatus = readClaudeStatus(this.deps.statusDir);
+    this.sessions = [...claude, ...opencode, ...this.sessions.filter((s) => s.tool === 'codex' || s.tool === 'pi')];
+    if (this.deps.statusDir) this.claudeStatus = readClaudeStatus(this.deps.statusDir, Date.now(), this.deps.claudeLedgerFile);
     if (this.deps.codexDir) {
       try {
         this.codexLimits = readCodexLimits(this.deps.codexDir);
@@ -111,32 +113,42 @@ export class App {
         this.codexError = `can't read Codex sessions: ${(e as Error).message}`;
       }
     }
+    // pi sessions are known from the events its extension writes, read just above
+    if (this.deps.listPi) {
+      try {
+        this.sessions = [...this.sessions.filter((s) => s.tool !== 'pi'), ...(await this.deps.listPi())];
+      } catch {
+        // ps failed: keep the last pi list
+      }
+    }
     await this.matchPanes();
     await this.readBranches();
   }
 
   private async matchPanes(): Promise<void> {
+    // Built aside and swapped in at the end: requests served during this poll still see the old map.
+    const found = new Map<string, Pane>();
     this.weztermAvailable = await this.deps.wezterm.available();
-    this.panes.clear();
-    if (!this.weztermAvailable) return;
+    if (!this.weztermAvailable) return void (this.panes = found);
     let panes: Pane[];
     try {
       panes = await this.deps.wezterm.listPanes();
     } catch {
-      return; // WezTerm installed but not running
+      return void (this.panes = found); // WezTerm installed but not running
     }
     const withPid = this.sessions.filter((s) => s.pid);
     const ttys = await ttysForPids(this.deps.run, withPid.map((s) => s.pid!));
     for (const s of withPid) {
       const tty = ttys.get(s.pid!);
       const pane = tty && paneForTty(panes, tty);
-      if (pane) this.panes.set(s.sessionId, pane);
+      if (pane) found.set(s.sessionId, pane);
       const pending = pane && this.pendingNames.get(pane.pane_id);
       if (pending) {
         if (!this.deps.names.all()[s.sessionId]) this.deps.names.set(s.sessionId, pending);
         this.pendingNames.delete(pane!.pane_id);
       }
     }
+    this.panes = found;
   }
 
   private async readBranches(): Promise<void> {
@@ -201,6 +213,7 @@ export class App {
         costUsd: c.tool === 'opencode' ? s?.costUsd : st?.costUsd,
         contextPct: st?.contextPct,
         model: c.tool === 'claude' ? st?.model : s?.model,
+        lastReply: c.tool === 'opencode' ? s?.lastReply : this.deps.events.lastReply(c.sessionId),
       };
     });
     const usage = {
@@ -238,6 +251,25 @@ export class App {
     return { message: `Not in WezTerm. It runs on terminal device ${tty ?? 'unknown'}.` };
   }
 
+  // Sends a message to any tool (Claude Code, opencode, Codex) by typing it into its WezTerm tab.
+  // Never while the session needs input: the text would answer its permission prompt or question.
+  async send(id: string, text: string): Promise<void> {
+    this.noDemo();
+    if (!text.trim()) throw new HttpError(400, 'empty message');
+    // Fresh state, not the last poll's: a prompt that opened since then must block the send.
+    await this.poll();
+    const card = this.card(id);
+    if (card.column === 'needs_input') throw new HttpError(409, 'The session needs input: the user must answer it first');
+    const s = this.sessions.find((x) => x.sessionId === id);
+    const twins = this.sessions.filter((x) => x.tool === s?.tool && x.cwd === s?.cwd).length;
+    if (s?.windowGuessed && twins > 1) {
+      throw new HttpError(409, `Several ${s.tool} sessions run in ${s.cwd}: cannot be sure which tab is this session`);
+    }
+    const pane = this.panes.get(id);
+    if (!pane) throw new HttpError(409, 'Not in WezTerm: cannot type into it');
+    await this.deps.wezterm.sendText(pane.pane_id, text);
+  }
+
   async close(id: string): Promise<void> {
     this.noDemo();
     const card = this.card(id);
@@ -259,7 +291,7 @@ export class App {
     if (!pid) throw new HttpError(409, 'background sessions cannot be moved');
     process.kill(pid, 'SIGTERM');
     await waitForExit(pid);
-    const cmd = card.tool === 'opencode' ? opencodeCommand(id) : card.tool === 'codex' ? codexCommand(id) : resumeCommand(id);
+    const cmd = card.tool === 'opencode' ? opencodeCommand(id) : card.tool === 'codex' ? codexCommand(id) : card.tool === 'pi' ? piCommand(id) : resumeCommand(id);
     await this.deps.wezterm.spawn(card.cwd, cmd);
   }
 
@@ -289,6 +321,12 @@ export class App {
     const dir = path.join(this.projectsDir, repo);
     const title = name?.trim() || undefined;
     let cmd = claudeCommand(title);
+    if (tool === 'pi') {
+      // pi names a session with /name, inside the session: name the card once it shows up in the new pane
+      const paneId = await this.deps.wezterm.spawn(dir, piCommand());
+      if (title) this.pendingNames.set(paneId, title);
+      return;
+    }
     if (tool === 'codex') {
       // Codex has no name option and its session id is only known later: name the card once it shows up in the new pane
       const paneId = await this.deps.wezterm.spawn(dir, codexCommand());

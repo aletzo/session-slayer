@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { addSpend, emptySpend, type Spend } from '../spend';
+import { emptySpend, ledgerSpend, readLedger, type SessionTotal, type Spend, writeLedger } from '../spend';
 
 // Reads the status line JSON saved by hooks/session-slayer-statusline.sh, one file per session.
 export type Limit = { pct: number; resetsAt: number }; // resetsAt in ms
@@ -8,7 +8,7 @@ export type ClaudeStatus = {
   perSession: Map<string, { costUsd?: number; contextPct?: number; model?: string }>;
   fiveHour?: Limit;
   sevenDay?: Limit;
-  spend: Spend; // summed cost of sessions by the period they were last active in
+  spend: Spend; // cost per period, split by the day it was spent
 };
 
 type Raw = {
@@ -27,9 +27,10 @@ function limit(r: Raw['rate_limits'], key: string, now: number): Limit | undefin
   return resetsAt > now ? { pct: w.used_percentage, resetsAt } : undefined; // window already reset
 }
 
-export function readClaudeStatus(dir: string, now = Date.now()): ClaudeStatus {
+export function readClaudeStatus(dir: string, now = Date.now(), ledgerFile?: string): ClaudeStatus {
   const status: ClaudeStatus = { perSession: new Map(), spend: emptySpend() };
   if (!fs.existsSync(dir)) return status;
+  const totals: SessionTotal[] = [];
   let newest = 0;
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith('.json')) continue;
@@ -52,7 +53,7 @@ export function readClaudeStatus(dir: string, now = Date.now()): ClaudeStatus {
       contextPct: raw.context_window?.used_percentage ?? undefined,
       model: raw.model?.display_name,
     });
-    addSpend(status.spend, raw.cost?.total_cost_usd ?? 0, mtime, now);
+    totals.push({ id: f.slice(0, -'.json'.length), total: raw.cost?.total_cost_usd ?? 0, at: mtime });
     // Plan limits are account-wide: take them from the most recently updated session.
     if (raw.rate_limits && mtime > newest) {
       newest = mtime;
@@ -60,5 +61,8 @@ export function readClaudeStatus(dir: string, now = Date.now()): ClaudeStatus {
       status.sevenDay = limit(raw.rate_limits, 'seven_day', now);
     }
   }
+  const ledger = readLedger(ledgerFile);
+  status.spend = ledgerSpend(ledger, totals, now);
+  writeLedger(ledgerFile, ledger);
   return status;
 }

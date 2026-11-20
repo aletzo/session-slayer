@@ -39,7 +39,7 @@ export function createServer(app: App, staticDir?: string): http.Server & { broa
     // The Host check is the real guard. Browsers always send Origin on cross-site writes, so a missing Origin is a same-site or non-browser client.
     const origin = req.headers.origin;
     if (req.method !== 'GET' && origin && !allowed.some((h) => origin === `http://${h}`)) return send(res, 403, { error: 'bad origin' });
-    const m = p.match(/^\/api\/sessions\/([^/]+)\/(focus|close|move|name|recap)$/);
+    const m = p.match(/^\/api\/sessions\/([^/]+)\/(focus|close|move|name|recap|send)$/);
     try {
       if (req.method === 'GET' && p === '/api/board') return send(res, 200, app.board());
       if (req.method === 'GET' && p === '/api/repos') return send(res, 200, app.repos());
@@ -52,13 +52,17 @@ export function createServer(app: App, staticDir?: string): http.Server & { broa
       }
       if (req.method === 'POST' && p === '/api/sessions') {
         const b = await body(req);
-        await app.newSession(b.repo, b.name, b.tool === 'opencode' || b.tool === 'codex' ? b.tool : 'claude');
+        await app.newSession(b.repo, b.name, b.tool === 'opencode' || b.tool === 'codex' || b.tool === 'pi' ? b.tool : 'claude');
         return send(res, 200, {});
       }
       if (m && req.method === 'GET' && m[2] === 'recap') return send(res, 200, app.recap(m[1]));
       if (m && req.method === 'POST' && m[2] === 'focus') return send(res, 200, await app.focus(m[1]));
       if (m && req.method === 'POST' && m[2] === 'close') {
         await app.close(m[1]);
+        return send(res, 200, {});
+      }
+      if (m && req.method === 'POST' && m[2] === 'send') {
+        await app.send(m[1], String((await body(req)).text ?? ''));
         return send(res, 200, {});
       }
       if (m && req.method === 'POST' && m[2] === 'move') {

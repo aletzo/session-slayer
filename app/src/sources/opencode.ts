@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { Runner } from '../run';
-import type { LiveSession } from '../types';
-import { emptySpend, addSpend, type Spend } from '../spend';
+import type { LiveSession, Reply } from '../types';
+import { shortReply } from './hookEvents';
+import { type Ledger, ledgerSpend, readLedger, type Spend, writeLedger } from '../spend';
 
 // opencode v2 runs one background service per user; its address and password are in service.json.
 const SERVICE_FILE = path.join(process.env.XDG_STATE_HOME ?? path.join(os.homedir(), '.local', 'state'), 'opencode', 'service.json');
@@ -86,16 +87,30 @@ export function pickSessions(windows: OcWindow[], sessions: OcSession[]): { wind
   return out;
 }
 
-export type OpencodeResult = { sessions: LiveSession[]; spend?: Spend };
+export type OcMessage = { type: string; time: { created: number; completed?: number }; content?: { type: string; text?: string }[] };
 
-// Pure: summed cost of top-level sessions by the period they were last used in.
-export function sessionSpend(sessions: OcSession[], now = Date.now()): Spend {
-  const spend = emptySpend();
-  for (const s of sessions) if (!s.parentID) addSpend(spend, s.cost ?? 0, s.time.updated, now);
-  return spend;
+// Pure: text of the newest assistant message that has text (tool-only messages are skipped).
+// Never throws: the message shape comes from opencode and is not checked, and a bad shape must only drop the reply.
+export function lastAssistantReply(messages: unknown): Reply | undefined {
+  if (!Array.isArray(messages)) return undefined;
+  const created = (m: OcMessage) => m?.time?.created ?? 0;
+  for (const m of [...(messages as OcMessage[])].sort((a, b) => created(b) - created(a))) {
+    if (m?.type !== 'assistant' || !Array.isArray(m.content)) continue;
+    const text = shortReply(m.content.filter((p) => p?.type === 'text' && typeof p.text === 'string').map((p) => p.text).join(' '));
+    if (text) return { text, ts: m.time?.completed ?? created(m) };
+  }
+  return undefined;
 }
 
-export async function listOpencodeSessions(run: Runner, serviceFile?: string): Promise<OpencodeResult> {
+export type OpencodeResult = { sessions: LiveSession[]; spend?: Spend };
+
+// Cost of top-level sessions per period, split by the day it was spent. Mutates the ledger.
+export function sessionSpend(sessions: OcSession[], ledger: Ledger = {}, now = Date.now()): Spend {
+  const totals = sessions.filter((s) => !s.parentID).map((s) => ({ id: s.id, total: s.cost ?? 0, at: s.time.updated }));
+  return ledgerSpend(ledger, totals, now);
+}
+
+export async function listOpencodeSessions(run: Runner, serviceFile?: string, ledgerFile?: string): Promise<OpencodeResult> {
   const svc = readService(serviceFile);
   if (!svc) return { sessions: [] };
 
@@ -107,9 +122,10 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
 
   const live = await Promise.all(
     pickSessions(windows, sessions).map(async ({ window, session }) => {
-      const [perms, forms] = await Promise.all([
+      const [perms, forms, messages] = await Promise.all([
         api<unknown[]>(svc, `/api/session/${session.id}/permission`).catch(() => []),
         api<unknown[]>(svc, `/api/session/${session.id}/form`).catch(() => []),
+        api<OcMessage[]>(svc, `/api/session/${session.id}/message?limit=10`).catch(() => []),
       ]);
       const waiting = perms.length > 0 || forms.length > 0;
       return {
@@ -125,10 +141,15 @@ export async function listOpencodeSessions(run: Runner, serviceFile?: string): P
         model: session.model?.id?.split('/').pop(),
         status: active[session.id] ? 'busy' : 'idle',
         state: waiting ? 'blocked' : undefined,
+        lastReply: lastAssistantReply(messages),
+        windowGuessed: true,
       };
     }),
   );
-  return { sessions: live, spend: sessionSpend(sessions) };
+  const ledger = readLedger(ledgerFile);
+  const spend = sessionSpend(sessions, ledger);
+  writeLedger(ledgerFile, ledger);
+  return { sessions: live, spend };
 }
 
 // Creates an empty session with a title, so the new window can open it with `opencode -s <id>`.

@@ -10,7 +10,7 @@ Run once per machine. Safe to run again. Explain each step in plain words and as
 | `node -v` is 26 or later (current LTS) | Ask the user to install Node 26 (e.g. `brew install node@26`, or `nvm install` in `<SKILL_DIR>/app`, which reads `.nvmrc`). |
 | `pnpm -v` | Offer `npm install -g pnpm` (or `corepack enable`). |
 | `which wezterm` | Offer `brew install --cask wezterm`. |
-| `which claude opencode codex` | Note which exist. At least one is needed. opencode must be v2 or later. |
+| `which claude opencode codex pi` | Note which exist. At least one is needed. opencode must be v2 or later. |
 
 ## 2. Ask for the projects folder
 
@@ -30,6 +30,7 @@ cd <SKILL_DIR>/app && pnpm install && pnpm slayer init --projects-dir <folder>
 - Installs the hooks (same as `pnpm slayer install-hooks`):
   - Claude Code: adds hook entries and a status line wrapper to `~/.claude/settings.json`. Backup: `settings.json.session-slayer.bak`. Your own status line still runs.
   - Codex (only when installed): adds hooks to `~/.codex/hooks.json`, with a backup. Tell the user Codex asks once to approve them.
+  - pi (only when installed): links the extension `app/hooks/session-slayer-pi.ts` into `~/.pi/agent/extensions/session-slayer.ts`. Running pi sessions load it after a restart or `/reload`.
   - opencode: nothing to install.
 
 The hooks only append one line per event to `~/.session-slayer/events.jsonl`. To undo: `pnpm slayer uninstall-hooks` (removes only the Session Slayer entries).
