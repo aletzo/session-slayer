@@ -1,4 +1,5 @@
 import { emptySpend, type Spend } from './spend';
+import { saveOpenSessions } from './restore';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -39,6 +40,8 @@ export type AppDeps = {
   listPi?: () => Promise<LiveSession[]>;
   codexDir?: string; // ~/.codex, for Codex plan limits
   demo?: boolean; // made-up sessions: actions are turned off
+  openSessionsFile?: string; // list of open sessions, for restore after a reboot
+  restoreFile?: string;
 };
 
 export class App {
@@ -123,6 +126,9 @@ export class App {
     }
     await this.matchPanes();
     await this.readBranches();
+    if (this.deps.openSessionsFile && this.deps.restoreFile && !this.sessionsError) {
+      saveOpenSessions(this.deps.openSessionsFile, this.deps.restoreFile, this.board().cards);
+    }
   }
 
   private async matchPanes(): Promise<void> {

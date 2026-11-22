@@ -69,6 +69,10 @@ export class WezTerm {
     await this.run(this.bin, ['cli', 'send-text', '--pane-id', String(paneId), '--no-paste', '\r']);
   }
 
+  async setTitle(paneId: number, title: string): Promise<void> {
+    await this.run(this.bin, ['cli', 'set-tab-title', '--pane-id', String(paneId), title]);
+  }
+
   async kill(paneId: number): Promise<void> {
     await this.run(this.bin, ['cli', 'kill-pane', '--pane-id', String(paneId)]);
   }

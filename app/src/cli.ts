@@ -16,12 +16,15 @@ import { listCodexSessions } from './sources/codex';
 import { listPiSessions } from './sources/pi';
 import { EventStore } from './sources/hookEvents';
 import { createOpencodeSession, listOpencodeSessions } from './sources/opencode';
+import { restore, sessionsToRestore } from './restore';
 import { WezTerm } from './wezterm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = process.env.SESSION_SLAYER_DIR ?? path.join(os.homedir(), '.session-slayer');
 const configFile = path.join(dataDir, 'config.json');
 const instanceFile = path.join(dataDir, 'instance.json');
+const openSessionsFile = path.join(dataDir, 'open-sessions.json');
+const restoreFile = path.join(dataDir, 'restore.json');
 // Try BASE_PORT, then the next one, up to MAX_PORT_ATTEMPTS.
 const BASE_PORT = 45300;
 const MAX_PORT_ATTEMPTS = 100;
@@ -62,6 +65,8 @@ async function serve(demo = false): Promise<void> {
     listPi: () => listPiSessions(run, events),
     codexDir: path.join(os.homedir(), '.codex'),
     projectsDir: process.env.SESSION_SLAYER_PROJECTS_DIR ?? readConfig().projectsDir,
+    openSessionsFile,
+    restoreFile,
   });
   await app.poll();
   const server = createServer(app, path.join(root, 'dist', 'web'));
@@ -225,6 +230,22 @@ if (cmd === 'start') {
   } else {
     console.log('pi not found: skipped the pi extension.');
   }
+} else if (cmd === 'restore') {
+  const { from, sessions } = sessionsToRestore(openSessionsFile, restoreFile);
+  if (!sessions.length) {
+    console.log('No sessions to restore.');
+  } else {
+    const wezterm = new WezTerm(run);
+    for (const s of sessions) {
+      try {
+        console.log(`${s.tool} ${s.sessionId} -> pane ${await restore(wezterm, s)} (${s.cwd})`);
+      } catch (e) {
+        console.log(`${s.tool} ${s.sessionId} failed: ${(e as Error).message}`);
+      }
+    }
+  }
+  if (from === restoreFile) fs.unlinkSync(restoreFile);
+  else if (from) fs.writeFileSync(openSessionsFile, '[]'); // restored once: not again
 } else if (cmd === 'uninstall-hooks') {
   for (const [file, codex] of [[path.join(os.homedir(), '.claude', 'settings.json'), false], [path.join(os.homedir(), '.codex', 'hooks.json'), true]] as const) {
     console.log(uninstallHooks(file, codex) ? `Session Slayer hooks removed from ${file}` : `No Session Slayer hooks in ${file}`);
@@ -232,6 +253,6 @@ if (cmd === 'start') {
   const piExtensions = path.join(os.homedir(), '.pi', 'agent', 'extensions');
   console.log(uninstallPiExtension(piExtensions) ? `pi extension removed from ${piExtensions}` : `No Session Slayer pi extension in ${piExtensions}`);
 } else {
-  console.log('Usage: pnpm slayer <start|stop|restart|sitrep|send <session> <message>|serve|demo|init --projects-dir <folder>|install-hooks|uninstall-hooks>');
+  console.log('Usage: pnpm slayer <start|stop|restart|sitrep|send <session> <message>|serve|demo|init --projects-dir <folder>|install-hooks|restore|uninstall-hooks>');
   process.exit(1);
 }
