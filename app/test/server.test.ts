@@ -27,12 +27,14 @@ const run = async (cmd: string, args: string[]) => {
   return '';
 };
 
+let defaultTool: 'claude' | 'codex' = 'claude';
 const app = new App({
   run,
   events: new EventStore(path.join(dir, 'events.jsonl')),
   names: new Names(path.join(dir, 'names.json')),
   wezterm: new WezTerm(run, 'wezterm'),
   home: dir,
+  defaultTool: () => defaultTool,
   listSessions: async () => [
     { tool: 'claude', sessionId: 'done1', pid: 100, cwd: path.join(dir, 'dev', 'repo-a'), kind: 'interactive', status: 'idle' },
     { tool: 'claude', sessionId: 'busy1', pid: 200, startedAt: 10, cwd: '/tmp', kind: 'interactive', status: 'busy' },
@@ -175,4 +177,12 @@ it('new opencode session with a name: creates the titled session, then opens it'
   calls.length = 0;
   await oc.newSession('repo-a', '', 'opencode');
   expect(calls).toContainEqual(['wezterm', 'cli', 'spawn', '--cwd', path.join(dir, 'dev', 'repo-a'), '--', 'env', '-u', 'CLAUDE_CODE_CHILD_SESSION', '-u', 'CLAUDECODE', 'zsh', '-lic', 'opencode; exec zsh']);
+});
+
+it('starts a new session with the default tool when none is picked', async () => {
+  calls.length = 0;
+  defaultTool = 'codex';
+  expect((await req('POST', '/api/sessions', { repo: 'repo-a' })).status).toBe(200);
+  expect(calls.find((c) => c[2] === 'spawn')?.join(' ')).toContain('codex');
+  defaultTool = 'claude';
 });

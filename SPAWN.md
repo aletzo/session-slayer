@@ -6,7 +6,16 @@ A spawned session is a real, separate Claude Code session in a new WezTerm tab. 
 
 1. Pick the folder. For work on a new branch, first create a git worktree (ask before git commands), and use its path.
 2. Write a self-contained prompt. The new session knows nothing about this chat: give it the goal, branch, commit, files, and the rules the user follows (what needs approval, which GitHub user the repo uses).
-3. Spawn it:
+3. Get the tool for new sessions: `cd <SKILL_DIR>/app && pnpm -s slayer default-tool` prints `claude`, `opencode`, `codex` or `pi`. Use the user's tool when they name one.
+4. Spawn it. In the last line, replace `claude "$SLAYER_PROMPT"` with the start command for the tool:
+
+| Tool | Start command |
+|---|---|
+| claude | `claude "$SLAYER_PROMPT"` |
+| opencode | `opencode --prompt "$SLAYER_PROMPT"` |
+| codex | `codex "$SLAYER_PROMPT"` |
+| pi | `pi "$SLAYER_PROMPT"` |
+
 
 ```bash
 # Quoted heredoc: quotes, backticks and $ in the prompt stay plain text.
@@ -17,9 +26,9 @@ SLAYER_PROMPT_EOF
 wezterm cli spawn --cwd <absolute folder> -- env -u CLAUDE_CODE_CHILD_SESSION -u CLAUDECODE SLAYER_PROMPT="$P" "$SHELL" -lic 'claude "$SLAYER_PROMPT"; exec "$SHELL"'
 ```
 
-The command prints the new pane id. The prompt goes in an environment variable, not `$1`, so it works in any login shell (fish too). `exec "$SHELL"` keeps the tab open after Claude exits.
+The command prints the new pane id. The prompt goes in an environment variable, not `$1`, so it works in any login shell (fish too). `exec "$SHELL"` keeps the tab open after the tool exits.
 
-4. Tell the user in one line: the folder, the pane id, and what the session will do.
+5. Tell the user in one line: the folder, the pane id, and what the session will do.
 
 ## Batch
 
@@ -51,6 +60,8 @@ SLAYER_PROMPT_EOF
 wezterm cli spawn --cwd "$DIR" -- env -u CLAUDE_CODE_CHILD_SESSION -u CLAUDECODE SLAYER_PROMPT="$P" "$SHELL" -lic 'claude "$SLAYER_PROMPT"; exec "$SHELL"'
 # ...repeat for each item
 ```
+
+Use the tool and start command from "One session", steps 3-4.
 
 Each call prints a pane id. Name tabs with `wezterm cli set-tab-title --pane-id <id> <item>`. A ticket key in the tab title also puts the card in that ticket's lane on the board.
 

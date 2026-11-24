@@ -1,5 +1,8 @@
 import { emptySpend, type Spend } from './spend';
 import { saveOpenSessions } from './restore';
+
+// About a minute of 2 s polls with no session: the user closed them all. A shutdown quits WezTerm far faster.
+const EMPTY_POLLS_TO_SAVE = 30;
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -42,6 +45,7 @@ export type AppDeps = {
   demo?: boolean; // made-up sessions: actions are turned off
   openSessionsFile?: string; // list of open sessions, for restore after a reboot
   restoreFile?: string;
+  defaultTool?: () => LiveSession['tool']; // read on each use: `pnpm slayer default-tool` works without a restart
 };
 
 export class App {
@@ -58,6 +62,7 @@ export class App {
   private opencodeSpend?: Spend;
   private claudeStatus: ClaudeStatus = { perSession: new Map(), spend: emptySpend() };
   private weztermAvailable = false;
+  private emptyPolls = 0; // polls in a row with no interactive session
   private compacted = false;
   readonly home: string;
   readonly projectsDir: string;
@@ -127,7 +132,13 @@ export class App {
     await this.matchPanes();
     await this.readBranches();
     if (this.deps.openSessionsFile && this.deps.restoreFile && !this.sessionsError) {
-      saveOpenSessions(this.deps.openSessionsFile, this.deps.restoreFile, this.board().cards);
+      try {
+        const cards = this.board().cards;
+        this.emptyPolls = cards.some((c) => c.kind === 'interactive') ? 0 : this.emptyPolls + 1;
+        saveOpenSessions(this.deps.openSessionsFile, this.deps.restoreFile, cards, undefined, this.emptyPolls >= EMPTY_POLLS_TO_SAVE);
+      } catch {
+        // disk full or no access: keep polling, the saved list stays as it was
+      }
     }
   }
 
@@ -231,7 +242,11 @@ export class App {
       opencodeSpend: this.opencodeSpend,
     };
     const errors = [this.sessionsError, this.opencodeError, this.codexError, this.weztermAvailable ? undefined : 'WezTerm is not installed'];
-    return { cards, usage, errors: errors.filter((e): e is string => !!e), weztermAvailable: this.weztermAvailable };
+    return { cards, usage, errors: errors.filter((e): e is string => !!e), weztermAvailable: this.weztermAvailable, defaultTool: this.defaultTool() };
+  }
+
+  defaultTool(): LiveSession['tool'] {
+    return this.deps.defaultTool?.() ?? 'claude';
   }
 
   private card(id: string) {
@@ -257,7 +272,7 @@ export class App {
     return { message: `Not in WezTerm. It runs on terminal device ${tty ?? 'unknown'}.` };
   }
 
-  // Sends a message to any tool (Claude Code, opencode, Codex) by typing it into its WezTerm tab.
+  // Sends a message to any tool (Claude Code, opencode, Codex, pi) by typing it into its WezTerm tab.
   // Never while the session needs input: the text would answer its permission prompt or question.
   async send(id: string, text: string): Promise<void> {
     this.noDemo();
@@ -321,7 +336,7 @@ export class App {
       .sort((a, b) => a.localeCompare(b));
   }
 
-  async newSession(repo: string, name?: string, tool: LiveSession['tool'] = 'claude'): Promise<void> {
+  async newSession(repo: string, name?: string, tool = this.defaultTool()): Promise<void> {
     this.noDemo();
     if (!this.repos().includes(repo)) throw new HttpError(400, 'unknown repo');
     const dir = path.join(this.projectsDir, repo);

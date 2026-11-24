@@ -20,6 +20,7 @@ A local kanban board of all running AI coding sessions, plus starting new real s
 | One new session | `SPAWN.md`, section "One session" |
 | One session per item from a list | `SPAWN.md`, section "Batch" |
 | "Restore sessions" after a reboot | **Restore** below |
+| Change the tool for new sessions (Claude Code, opencode, Codex, pi) | `cd <SKILL_DIR>/app && pnpm -s slayer default-tool <claude\|opencode\|codex\|pi>`. Without a tool it prints the current one. The board's "New session" dialog starts on it. |
 
 ## Board
 
@@ -48,7 +49,7 @@ The server takes the first free port from 45300 to 45399. Board output goes to `
 The board saves the open interactive sessions to `~/.session-slayer/open-sessions.json` on every poll. After a reboot, this command reopens each one in a new WezTerm tab (`claude --resume`, `opencode -s`, `codex resume`, `pi --session`):
 
 ```bash
-cd <SKILL_DIR>/app && { [ -s ~/.nvm/nvm.sh ] && . ~/.nvm/nvm.sh && nvm use >/dev/null; } && pnpm slayer restore
+cd <SKILL_DIR>/app && { [ -s ~/.nvm/nvm.sh ] && . ~/.nvm/nvm.sh && nvm use >/dev/null; node -v; } && pnpm slayer restore
 ```
 
 It restores only sessions open before the last boot, and only once. Report the printed list in one table.

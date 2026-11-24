@@ -37,6 +37,7 @@ It runs only on your machine. The server listens on `127.0.0.1` only.
   - **Claude Code**
   - **opencode v2** or later (the v1 plugin API is not supported)
   - **Codex CLI**
+  - **pi** (`@mariozechner/pi-coding-agent`)
 
 Start your sessions in WezTerm (or with the board's **+ New session** button), so the board can jump to them. Sessions in other terminals still show up, with a "not in WezTerm" badge. For Idle ones, **Move to WezTerm** reopens them there.
 
@@ -65,6 +66,7 @@ It is safe to run more than once: it never adds an entry twice and keeps your ex
 |---|---|---|---|
 | Claude Code | `~/.claude/settings.json` | Adds hook entries (`UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SessionEnd`). Puts a small wrapper in front of your status line, which saves the status line data for the board and then runs your own status line unchanged. | `settings.json.session-slayer.bak` |
 | Codex (only when `codex` is installed) | `~/.codex/hooks.json` | Adds hook entries (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`, `Interrupt`, `SessionEnd`). Codex asks you once to review the new hooks; approve them. | `hooks.json.session-slayer.bak` |
+| pi (only when `pi` is installed) | `~/.pi/agent/extensions/session-slayer.ts` | A link to `hooks/session-slayer-pi.ts`, a pi extension that writes pi's events (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, `SessionEnd`) with the pi process id. Restart pi or run `/reload` to load it. `uninstall-hooks` removes the link. | - (a new file) |
 | opencode | nothing | The board reads opencode's background service directly (`~/.local/state/opencode/service.json`). | - |
 
 The hooks only append one line per event to `~/.session-slayer/events.jsonl`. They never block or slow down the agent.
@@ -139,6 +141,7 @@ The rules that decide what a card shows are pure functions (`board.ts`, `tags.ts
 
 ## Limits
 
-- **opencode and Codex** match windows to sessions by folder. With two windows in the same folder, the newest session goes to the first window found.
+- **opencode** pins a window to its session when the args carry it: `-s <id>`, or the `--prompt` text matching the session's first message (the session born closest to the window start; the newest one when the start time is unknown). **Claude and Codex** pin the same way from their args (`--resume <id>`, `codex resume <id>`) and from the first prompt line the hooks record. A pin is only a guess when a sibling window or a twin session shares the same prompt, or a newer unclaimed session was born after the window started (the user may have switched sessions inside the TUI). What is left matches by folder: with two windows in the same folder, the newest session goes to the first window found.
+- **pi** sessions are found through the board's pi extension, which writes each event with the pi process id: no window guessing. Its live run showed session start, prompt and end; the reply (`agent_end`) is tested only with unit tests.
 - **Codex** support is written from its hook documentation and not yet tested on a real install.
 - **Cost** for Claude Code is an estimate at list price, not your bill.

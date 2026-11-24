@@ -247,7 +247,7 @@ export function App() {
         </div>
       </div>
 
-      {showNew && <NewSession onClose={() => setShowNew(false)} act={act} />}
+      {showNew && <NewSession defaultTool={board.defaultTool} onClose={() => setShowNew(false)} act={act} />}
     </div>
   );
 }
@@ -467,11 +467,11 @@ function SessionCard({ card, showRepo, now, act, canFocus }: { card: Card; showR
   );
 }
 
-function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
+function NewSession({ defaultTool, onClose, act }: { defaultTool: Card['tool']; onClose: () => void; act: Act }) {
   const [repos, setRepos] = useState<string[]>([]);
   const [repo, setRepo] = useState('');
   const [name, setName] = useState('');
-  const [tool, setTool] = useState<Card['tool']>(() => load('newTool', 'claude'));
+  const [tool, setTool] = useState<Card['tool']>(defaultTool);
 
   useEffect(() => {
     fetch('/api/repos')
@@ -483,7 +483,6 @@ function NewSession({ onClose, act }: { onClose: () => void; act: Act }) {
   }, []);
 
   const start = async () => {
-    save('newTool', tool);
     await act(() => api('POST', '/api/sessions', { repo, name, tool }));
     onClose();
   };

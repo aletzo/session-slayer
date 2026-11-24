@@ -12,7 +12,7 @@ const card = (o: Partial<Card>): Card => ({
   sessionId: 'x', name: 'n', nameSource: 'user', column: 'idle', lane: 'l', laneKind: 'repo', tags: [],
   columnSince: now, kind: 'interactive', tool: 'claude', cwd: '/', inWezterm: true, ...o,
 });
-const board = (cards: Card[]): Board => ({ cards, errors: [], weztermAvailable: true, usage: {} });
+const board = (cards: Card[]): Board => ({ cards, errors: [], weztermAvailable: true, defaultTool: 'claude', usage: {} });
 
 describe('shortReply', () => {
   it('one line, cut at max', () => {
@@ -59,11 +59,11 @@ describe('formatSitrep', () => {
   it('needs input first, then oldest; reply or prompt; pipes escaped', () => {
     const out = formatSitrep(board([
       card({ sessionId: '1', name: 'idle one', columnSince: now - 3600_000, firstPrompt: 'do x' }),
-      card({ sessionId: '2', name: 'ask | me', column: 'needs_input', ticket: 'ABC-1', tool: 'opencode', lastReply: { text: 'Oi, ok?', ts: now - 120_000 } }),
+      card({ sessionId: '2', name: 'ask | me', column: 'needs_input', ticket: 'PROJ-1', tool: 'opencode', lastReply: { text: 'Oi, ok?', ts: now - 120_000 } }),
     ]), now);
     const rows = out.split('\n').filter((r) => r.startsWith('| ') && !r.startsWith('| State'));
     expect(out.split('\n')[0]).toBe('2 sessions: 1 needs input, 0 working, 1 idle');
-    expect(rows[0]).toBe('| needs input 0m | ask \\| me | ABC-1 | opencode |  | Oi, ok? (2m ago) |');
+    expect(rows[0]).toBe('| needs input 0m | ask \\| me | PROJ-1 | opencode |  | Oi, ok? (2m ago) |');
     expect(rows[1]).toContain('| idle 1h | idle one |');
     expect(rows[1]).toContain('prompt: do x');
   });

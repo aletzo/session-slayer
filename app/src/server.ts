@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { type App, HttpError } from './app';
+import { TOOLS } from './types';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html',
@@ -52,7 +53,7 @@ export function createServer(app: App, staticDir?: string): http.Server & { broa
       }
       if (req.method === 'POST' && p === '/api/sessions') {
         const b = await body(req);
-        await app.newSession(b.repo, b.name, b.tool === 'opencode' || b.tool === 'codex' || b.tool === 'pi' ? b.tool : 'claude');
+        await app.newSession(b.repo, b.name, TOOLS.find((t) => t === b.tool));
         return send(res, 200, {});
       }
       if (m && req.method === 'GET' && m[2] === 'recap') return send(res, 200, app.recap(m[1]));

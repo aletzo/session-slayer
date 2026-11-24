@@ -2,8 +2,10 @@ import type { Spend } from './spend';
 
 export type Column = 'working' | 'needs_input' | 'idle';
 
+export const TOOLS = ['claude', 'opencode', 'codex', 'pi'] as const;
+
 export type LiveSession = {
-  tool: 'claude' | 'opencode' | 'codex' | 'pi';
+  tool: (typeof TOOLS)[number];
   sessionId: string;
   pid?: number;
   cwd: string;
@@ -15,7 +17,7 @@ export type LiveSession = {
   model?: string;
   status?: string;
   state?: string;
-  windowGuessed?: boolean; // paired to its window by folder and recency, not by process
+  windowGuessed?: boolean; // the pairing is not process-proven: folder + recency, or an arg pin cast in doubt by a sibling window, a twin session or a newer unclaimed session
   lastReply?: Reply; // opencode only: Claude and Codex replies come from hook events
 };
 
@@ -67,6 +69,7 @@ export type Board = {
   cards: Card[];
   errors: string[];
   weztermAvailable: boolean;
+  defaultTool: LiveSession['tool']; // tool for new sessions, set with `pnpm slayer default-tool`
   usage: {
     claude5h?: { pct: number; resetsAt: number };
     claude7d?: { pct: number; resetsAt: number };

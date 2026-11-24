@@ -32,16 +32,12 @@ config.keys = {
       end
     end),
   },
-  -- Cmd+C: copy WezTerm's selection, or pass Ctrl+Shift+C to apps that select text themselves (Claude Code)
+  -- Cmd+C: copy WezTerm's selection. Never sends keys to the app: Ctrl+C quits tools like pi and Claude Code.
   {
     key = 'c',
     mods = 'CMD',
     action = wezterm.action_callback(function(window, pane)
-      if window:get_selection_text_for_pane(pane) ~= '' then
-        window:perform_action(wezterm.action.CopyTo 'Clipboard', pane)
-      else
-        window:perform_action(wezterm.action.SendKey { key = 'c', mods = 'CTRL|SHIFT' }, pane)
-      end
+      window:perform_action(wezterm.action.CopyTo 'Clipboard', pane)
     end),
   },
 }

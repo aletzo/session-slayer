@@ -11,7 +11,7 @@ import { Names } from './names';
 import { run } from './run';
 import { createServer } from './server';
 import { formatSitrep } from './sitrep';
-import type { Board, Card } from './types';
+import { type Board, type Card, TOOLS } from './types';
 import { listCodexSessions } from './sources/codex';
 import { listPiSessions } from './sources/pi';
 import { EventStore } from './sources/hookEvents';
@@ -29,7 +29,7 @@ const restoreFile = path.join(dataDir, 'restore.json');
 const BASE_PORT = 45300;
 const MAX_PORT_ATTEMPTS = 100;
 
-function readConfig(): { projectsDir?: string } {
+function readConfig(): { projectsDir?: string; defaultTool?: (typeof TOOLS)[number] } {
   try {
     return JSON.parse(fs.readFileSync(configFile, 'utf8'));
   } catch {
@@ -67,6 +67,7 @@ async function serve(demo = false): Promise<void> {
     projectsDir: process.env.SESSION_SLAYER_PROJECTS_DIR ?? readConfig().projectsDir,
     openSessionsFile,
     restoreFile,
+    defaultTool: () => readConfig().defaultTool ?? 'claude',
   });
   await app.poll();
   const server = createServer(app, path.join(root, 'dist', 'web'));
@@ -74,7 +75,7 @@ async function serve(demo = false): Promise<void> {
   console.log(`Session Slayer on http://127.0.0.1:${port}`);
   if (!demo) {
     fs.mkdirSync(dataDir, { recursive: true });
-    fs.writeFileSync(instanceFile, JSON.stringify({ port, pid: process.pid }));
+    fs.writeFileSync(instanceFile, JSON.stringify({ port, pid: process.pid, code: loadedCode, detached: process.env.SLAYER_DETACHED === '1' }));
     const cleanup = () => {
       try {
         if (JSON.parse(fs.readFileSync(instanceFile, 'utf8')).pid === process.pid) fs.unlinkSync(instanceFile);
@@ -99,8 +100,21 @@ async function serve(demo = false): Promise<void> {
   }, 2000);
 }
 
+// Which code a board runs: its app folder and the newest file time under src (server) and web (page).
+// Taken at load, so a board records the code it loaded, not files changed during its slow first poll.
+function codeStamp(): string {
+  const times = ['src', 'web'].flatMap((d) => fs.readdirSync(path.join(root, d), { recursive: true }).map((f) => fs.statSync(path.join(root, d, String(f))).mtimeMs));
+  return `${root}@${Math.max(...times)}`;
+}
+const loadedCode = codeStamp();
+
+// A board started by `pnpm start` (detached: true) can be replaced. Any other board (launchd from SETUP.md, `pnpm serve`)
+// is owned by something else: killing it can make its owner start it again next to ours.
+type Instance = { port: number; pid: number; code?: string; detached?: boolean };
+const ownerHint = 'It is not started by `pnpm start` (launchd or `pnpm serve`): restart it there, e.g. `launchctl kickstart -k gui/$(id -u)/com.session-slayer`.';
+
 // A board counts as running only if its port answers: a crash or reboot can leave a stale instance.json.
-async function runningInstance(): Promise<{ port: number; pid: number } | undefined> {
+async function runningInstance(): Promise<Instance | undefined> {
   try {
     const inst = JSON.parse(fs.readFileSync(instanceFile, 'utf8'));
     const res = await fetch(`http://127.0.0.1:${inst.port}/api/repos`, { signal: AbortSignal.timeout(1000) });
@@ -113,6 +127,15 @@ async function runningInstance(): Promise<{ port: number; pid: number } | undefi
 // Starts `serve` in its own process group so the board outlives the shell (or agent session) that started it.
 async function startDetached(): Promise<void> {
   let inst = await runningInstance();
+  if (inst && inst.code !== loadedCode) {
+    if (inst.detached === undefined) console.log(`The board on port ${inst.port} runs other code. Restart it once with \`pnpm slayer restart\` (or under launchd if it runs there).`);
+    else if (!inst.detached) console.log(`The board on port ${inst.port} runs other code. ${ownerHint}`);
+    else {
+      console.log(`The board on port ${inst.port} runs other code (${inst.code ?? 'an old version'}): restarting it`);
+      await stopBoard(inst);
+      inst = undefined;
+    }
+  }
   if (!inst) {
     // Build only for a new board: rebuilding under a live one swaps its page but keeps its old server.
     execFileSync(path.join(root, 'node_modules', '.bin', 'vite'), ['build'], { cwd: root, stdio: 'inherit' });
@@ -120,6 +143,7 @@ async function startDetached(): Promise<void> {
     const logFile = path.join(dataDir, 'board.log');
     const child = spawn(process.execPath, [...process.execArgv, fileURLToPath(import.meta.url), 'serve'], {
       detached: true,
+      env: { ...process.env, SLAYER_DETACHED: '1' },
       stdio: ['ignore', fs.openSync(logFile, 'a'), fs.openSync(logFile, 'a')],
     });
     let exited = false;
@@ -137,19 +161,24 @@ async function startDetached(): Promise<void> {
   console.log(`Session Slayer on http://127.0.0.1:${inst.port}`);
 }
 
+async function stopBoard(inst: Instance): Promise<void> {
+  process.kill(inst.pid, 'SIGTERM');
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline && (await runningInstance())) await new Promise((r) => setTimeout(r, 300));
+  console.log(`Stopped the board on port ${inst.port}`);
+}
+
 const cmd = process.argv[2];
 if (cmd === 'start') {
   await startDetached();
 } else if (cmd === 'stop' || cmd === 'restart') {
   // Restart after an update: a running board keeps its old server code until it stops.
   const inst = await runningInstance();
-  if (inst) {
-    process.kill(inst.pid, 'SIGTERM');
-    const deadline = Date.now() + 10_000;
-    while (Date.now() < deadline && (await runningInstance())) await new Promise((r) => setTimeout(r, 300));
-    console.log(`Stopped the board on port ${inst.port}`);
-  } else console.log('No board runs');
-  if (cmd === 'restart') await startDetached();
+  if (!inst) console.log('No board runs');
+  // detached undefined: a board from before this field; the user asked to stop it, so do.
+  else if (inst.detached === false) console.log(`Not stopped: the board on port ${inst.port}. ${ownerHint}`);
+  else await stopBoard(inst);
+  if (cmd === 'restart' && inst?.detached !== false) await startDetached();
 } else if (cmd === 'send') {
   // pnpm slayer send <session id or part of its name> <message...>
   const [who, ...words] = process.argv.slice(3);
@@ -188,6 +217,18 @@ if (cmd === 'start') {
   await serve();
 } else if (cmd === 'demo') {
   await serve(true);
+} else if (cmd === 'default-tool') {
+  // pnpm slayer default-tool [claude|opencode|codex|pi]: prints or sets the tool for new sessions
+  const tool = process.argv[3] as (typeof TOOLS)[number] | undefined;
+  if (tool && !TOOLS.find((t) => t === tool)) {
+    console.log(`Unknown tool "${tool}". Use one of: ${TOOLS.join(', ')}`);
+    process.exit(1);
+  }
+  if (tool) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(configFile, JSON.stringify({ ...readConfig(), defaultTool: tool }, null, 2));
+  }
+  console.log(readConfig().defaultTool ?? 'claude');
 } else if (cmd === 'init' || cmd === 'install-hooks') {
   if (cmd === 'init') {
     const i = process.argv.indexOf('--projects-dir');
@@ -232,6 +273,7 @@ if (cmd === 'start') {
   }
 } else if (cmd === 'restore') {
   const { from, sessions } = sessionsToRestore(openSessionsFile, restoreFile);
+  const failed: typeof sessions = [];
   if (!sessions.length) {
     console.log('No sessions to restore.');
   } else {
@@ -240,12 +282,15 @@ if (cmd === 'start') {
       try {
         console.log(`${s.tool} ${s.sessionId} -> pane ${await restore(wezterm, s)} (${s.cwd})`);
       } catch (e) {
+        failed.push(s);
         console.log(`${s.tool} ${s.sessionId} failed: ${(e as Error).message}`);
       }
     }
   }
-  if (from === restoreFile) fs.unlinkSync(restoreFile);
-  else if (from) fs.writeFileSync(openSessionsFile, '[]'); // restored once: not again
+  // Restored once: not again. Failed sessions stay in restore.json for the next "restore".
+  if (from === openSessionsFile) fs.writeFileSync(openSessionsFile, '[]');
+  if (failed.length) fs.writeFileSync(restoreFile, JSON.stringify(failed, null, 2));
+  else if (from) fs.rmSync(restoreFile, { force: true });
 } else if (cmd === 'uninstall-hooks') {
   for (const [file, codex] of [[path.join(os.homedir(), '.claude', 'settings.json'), false], [path.join(os.homedir(), '.codex', 'hooks.json'), true]] as const) {
     console.log(uninstallHooks(file, codex) ? `Session Slayer hooks removed from ${file}` : `No Session Slayer hooks in ${file}`);
@@ -253,6 +298,6 @@ if (cmd === 'start') {
   const piExtensions = path.join(os.homedir(), '.pi', 'agent', 'extensions');
   console.log(uninstallPiExtension(piExtensions) ? `pi extension removed from ${piExtensions}` : `No Session Slayer pi extension in ${piExtensions}`);
 } else {
-  console.log('Usage: pnpm slayer <start|stop|restart|sitrep|send <session> <message>|serve|demo|init --projects-dir <folder>|install-hooks|restore|uninstall-hooks>');
+  console.log('Usage: pnpm slayer <start|stop|restart|sitrep|send <session> <message>|serve|demo|init --projects-dir <folder>|install-hooks|restore|default-tool [claude|opencode|codex|pi]|uninstall-hooks>');
   process.exit(1);
 }

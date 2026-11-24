@@ -70,7 +70,7 @@ export class WezTerm {
   }
 
   async setTitle(paneId: number, title: string): Promise<void> {
-    await this.run(this.bin, ['cli', 'set-tab-title', '--pane-id', String(paneId), title]);
+    await this.run(this.bin, ['cli', 'set-tab-title', '--pane-id', String(paneId), '--', title]);
   }
 
   async kill(paneId: number): Promise<void> {
